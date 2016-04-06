@@ -1,0 +1,164 @@
+import tkinter as tk   # python3
+from PIL import Image, ImageTk
+#import Tkinter as tk   # python
+
+TITLE_FONT = ("Helvetica", 18, "bold")
+
+class SampleApp(tk.Tk):
+
+    def __init__(self, *args, **kwargs):
+        tk.Tk.__init__(self, *args, **kwargs)
+
+        # the container is where we'll stack a bunch of frames
+        # on top of each other, then the one we want visible
+        # will be raised above the others
+        self.title("HASH KITTENS")
+        self.geometry("300x480+300+300")
+
+        container = tk.Frame(self)
+        container.pack(side="top", fill="both", expand=True)
+        container.grid_rowconfigure(0, weight=1)
+        container.grid_columnconfigure(0, weight=1)
+
+        self.frames = {}
+        # When add new page into application
+        # should also add it in this set
+        for F in (MainPage, NewTaskPage, JoinPage, ResultPage):
+            page_name = F.__name__
+            frame = F(container, self)
+            self.frames[page_name] = frame
+
+            # put all of the pages in the same location;
+            # the one on the top of the stacking order
+            # will be the one that is visible.
+            frame.grid(row=0, column=0, sticky="nsew")
+
+        self.show_frame("MainPage")
+
+    def show_frame(self, page_name):
+        # Show a frame for the given page name
+        frame = self.frames[page_name]
+        frame.tkraise()
+
+
+class MainPage(tk.Frame):
+
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        self.controller = controller
+        label_blank = tk.Label(self)
+        label_blank.pack(side="top", fill="both", pady="40")
+
+        label_welcome = tk.Label(self, text="Welcome to HashKittens", font=TITLE_FONT)
+        label_welcome.pack(side="top", fill="both")
+
+        kitten_image_jpg = Image.open("./res/kitten.png")
+        kitten_image = ImageTk.PhotoImage(kitten_image_jpg)
+        label_kitten_img = tk.Label(self, image=kitten_image)
+        label_kitten_img.image = kitten_image
+        label_kitten_img.pack(pady="10")
+
+        label_blank1 = tk.Label(self)
+        label_blank1.pack(side="top", fill="both", pady="20")
+
+        start_button = tk.Button(self, text="START NEW", width=25,
+                            command=lambda: controller.show_frame("NewTaskPage"))
+        join_button = tk.Button(self, text="JOIN", width=25,
+                            command=lambda: controller.show_frame("JoinPage"))
+        result_button = tk.Button(self, text="Result(won't be here)", width=25,
+                                  command=lambda: controller.show_frame("ResultPage"))
+
+        start_button.pack()
+        join_button.pack()
+        result_button.pack()
+
+
+class NewTaskPage(tk.Frame):
+
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        self.controller = controller
+
+        label = tk.Label(self, text="Crack a New Hash", font=TITLE_FONT)
+        label.pack(side="top", fill="x", pady=10)
+
+        # hash type
+        hash_container = tk.Frame(self)
+        hash_container.pack(side="top", fill="x", pady=5)
+        label_hash_content = tk.Label(hash_container, text="Hash Type:   ")
+        label_hash_content.pack(side="left", fill="x")
+        hash_type_var = tk.StringVar(hash_container)
+        option = tk.OptionMenu(hash_container, hash_type_var, "type1", "type2", "type3", "typ4")
+        option.configure(width=40)
+        option.pack(side="left", fill="x")
+
+        # hash length
+        hash_container = tk.Frame(self)
+        hash_container.pack(side="top", fill="x", pady=5)
+        label_hash_content = tk.Label(hash_container, text="Hash Length: ")
+        label_hash_content.pack(side="left", fill="x")
+        hash_length_text = tk.StringVar()
+        hash_content = tk.Entry(hash_container, textvariable=hash_length_text, bg="white", width=40)
+        hash_content.pack(side="left", fill="x")
+
+        # Char Set
+        hash_container = tk.Frame(self)
+        hash_container.pack(side="top", fill="x", pady=5)
+        label_hash_content = tk.Label(hash_container, text="Char Set:      ")
+        label_hash_content.pack(side="left", fill="x")
+        char_set_var = tk.StringVar(hash_container)
+        option = tk.OptionMenu(hash_container, char_set_var, "type1", "type2", "type3", "typ4")
+        option.configure(width=40)
+        option.pack(side="left", fill="x")
+
+        # hash
+        hash_container = tk.Frame(self)
+        hash_container.pack(side="top", fill="x", pady=5)
+        label_hash_content = tk.Label(hash_container, text="Hash:             ")
+        label_hash_content.pack(side="left", fill="x")
+        hash_text = tk.StringVar();
+        hash_content = tk.Entry(hash_container, textvariable=hash_text, bg="white", width=40)
+        hash_content.pack(side="left", fill="x")
+
+        # start button and back button
+        # start_hashkittens() is the function to be called when clicking the button
+        # this is an example of get input value and print it through a bind function
+        start_button = tk.Button(self, text="START", width=25,
+                                 command=lambda: self.start_hashkittens(hash_type_var.get(), hash_length_text.get(), char_set_var.get(), hash_text.get()))
+        start_button.pack(side="top", fill="x")
+        back_button = tk.Button(self, text="BACK", width=25,
+                           command=lambda: controller.show_frame("MainPage"))
+        back_button.pack(side="top", fill="x")
+
+    def start_hashkittens(self, hash_type_var, hash_content, char_set_var, hash_text):
+        print(hash_type_var)
+        print(hash_content)
+        print (char_set_var)
+        print(hash_text)
+
+
+class JoinPage(tk.Frame):
+
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        self.controller = controller
+        label = tk.Label(self, text="This is page 2", font=TITLE_FONT)
+        label.pack(side="top", fill="x", pady=10)
+        button = tk.Button(self, text="Go to the start page",
+                           command=lambda: controller.show_frame("MainPage"))
+        button.pack()
+
+class ResultPage(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        self.controller = controller
+        label = tk.Label(self, text="This is result page", font=TITLE_FONT)
+        label.pack(side="top", fill="x", pady=10)
+        button = tk.Button(self, text="Go to the start page",
+                           command=lambda: controller.show_frame("MainPage"))
+        button.pack()
+
+
+if __name__ == "__main__":
+    app = SampleApp()
+    app.mainloop()
