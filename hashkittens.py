@@ -1,6 +1,7 @@
 import tkinter as tk   # python3
 from PIL import Image, ImageTk
 #import Tkinter as tk   # python
+from middleware import crack
 
 TITLE_FONT = ("Helvetica", 18, "bold")
 
@@ -12,8 +13,8 @@ class SampleApp(tk.Tk):
         # the container is where we'll stack a bunch of frames
         # on top of each other, then the one we want visible
         # will be raised above the others
-        self.title("HASH KITTENS")
-        self.geometry("300x480+300+300")
+        self.title("HashKittens")
+        self.geometry("400x480+300+300")
 
         container = tk.Frame(self)
         container.pack(side="top", fill="both", expand=True)
@@ -49,7 +50,7 @@ class MainPage(tk.Frame):
         label_blank = tk.Label(self)
         label_blank.pack(side="top", fill="both", pady="40")
 
-        label_welcome = tk.Label(self, text="Welcome to HashKittens", font=TITLE_FONT)
+        label_welcome = tk.Label(self, text="HashKittens", font=TITLE_FONT)
         label_welcome.pack(side="top", fill="both")
 
         kitten_image_jpg = Image.open("./res/kitten.png")
@@ -88,17 +89,17 @@ class NewTaskPage(tk.Frame):
         label_hash_content = tk.Label(hash_container, text="Hash Type:   ")
         label_hash_content.pack(side="left", fill="x")
         hash_type_var = tk.StringVar(hash_container)
-        option = tk.OptionMenu(hash_container, hash_type_var, "type1", "type2", "type3", "typ4")
+        option = tk.OptionMenu(hash_container, hash_type_var, "NTLM")
         option.configure(width=40)
         option.pack(side="left", fill="x")
 
         # hash length
         hash_container = tk.Frame(self)
         hash_container.pack(side="top", fill="x", pady=5)
-        label_hash_content = tk.Label(hash_container, text="Hash Length: ")
+        label_hash_content = tk.Label(hash_container, text="Password Length: ")
         label_hash_content.pack(side="left", fill="x")
         hash_length_text = tk.StringVar()
-        hash_content = tk.Entry(hash_container, textvariable=hash_length_text, bg="white", width=40)
+        hash_content = tk.Entry(hash_container, textvariable=hash_length_text, bg="white", width=34)
         hash_content.pack(side="left", fill="x")
 
         # Char Set
@@ -107,7 +108,7 @@ class NewTaskPage(tk.Frame):
         label_hash_content = tk.Label(hash_container, text="Char Set:      ")
         label_hash_content.pack(side="left", fill="x")
         char_set_var = tk.StringVar(hash_container)
-        option = tk.OptionMenu(hash_container, char_set_var, "type1", "type2", "type3", "typ4")
+        option = tk.OptionMenu(hash_container, char_set_var, "lower", "UPPER", "tOgGlE")
         option.configure(width=40)
         option.pack(side="left", fill="x")
 
@@ -131,10 +132,12 @@ class NewTaskPage(tk.Frame):
         back_button.pack(side="top", fill="x")
 
     def start_hashkittens(self, hash_type_var, hash_content, char_set_var, hash_text):
-        print(hash_type_var)
-        print(hash_content)
-        print (char_set_var)
-        print(hash_text)
+        crack(hash_type_var, hash_content, char_set_var, hash_text)
+        #print(hash_type_var)
+        #print(hash_content)
+        #print (char_set_var)
+        #print(hash_text)
+
 
 
 class JoinPage(tk.Frame):
