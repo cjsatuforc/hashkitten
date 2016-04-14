@@ -9,11 +9,11 @@ print (peerRecordID)
 
 #To Remove Oldest IP Address
 #removeOldestIPEntry()
-
+postPass2DNS("asdf...abcd:helloworld")
 #To Add current Host
 #postHostIP()
 
-peerIP, peerTimes, peerRecordID = getPeerIP()
+#peerIP, peerTimes, peerRecordID = getPeerIP()
 
 print (peerIP)
 print (peerTimes)
