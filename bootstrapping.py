@@ -9,7 +9,8 @@ import json
 # postHostIP() : gets its own IP address, adds it to the DNS record
 # removeOldestEntry() : calls getPeerIP(), finds the oldest, and removes it using removeOldestEntry(record_num)
 # removeIPRecord(record_num) : takes record number as param. Uses this number to delete DNS entry for that record.
-# 
+# postPass2DNS(hash_string) : takes string of format "abcd...wxyz:<password>" where abcd is first 4 chars of hash, wxyz are last 4
+#
 
 def getPeerIP():
 
@@ -113,3 +114,25 @@ def removeOldestIPEntry():
 
     #oldest record is in position 0 of the list
     removeIPRecord(peerRecordID[0])
+
+
+def postPass2DNS(hash_string):
+     #post to DNS record
+    url = 'https://api.dnsimple.com/v1/domains/hashkittens.me/records'
+    data = {
+    'record': {
+    'content': hash_string, 
+    'record_type': 'TXT',
+    'name': '', 
+    'prio': 10, 
+    'ttl': 3600}
+    }
+    headers = {
+    'X-DNSimple-Token': 'rjbaker@cmu.edu:jdAzT7XqRyF1GMKj7iVduHJFzlDCJkLS',
+    'Accept': 'application/json',
+    'Content-Type' : 'application/json'
+    }
+    r = requests.post(url, data=json.dumps(data), headers=headers)
+        
+    return
+
