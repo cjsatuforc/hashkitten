@@ -9,7 +9,6 @@ from hash_helper import *
 import argparse
 from threading import *
 from communication_layer import *
-from hashkittens_msg import *
 
 ####################### chord node definition #####################################
 class chordNode():
