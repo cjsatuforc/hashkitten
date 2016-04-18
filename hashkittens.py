@@ -1,7 +1,10 @@
 import tkinter as tk   # python3
 from PIL import Image, ImageTk
 #import Tkinter as tk   # python
-from middleware import crack
+from middleware import *
+from chord_node import *
+from bootstrapping import *
+from communication_layer import *
 
 TITLE_FONT = ("Helvetica", 18, "bold")
 
@@ -131,14 +134,18 @@ class NewTaskPage(tk.Frame):
                            command=lambda: controller.show_frame("MainPage"))
         back_button.pack(side="top", fill="x")
 
-    def start_hashkittens(self, hash_type_var, hash_content, char_set_var, hash_text):
-        crack(hash_type_var, hash_content, char_set_var, hash_text)
-        #print(hash_type_var)
-        #print(hash_content)
-        #print (char_set_var)
-        #print(hash_text)
-
-
+    def start_hashkittens(self, hash_type_var, hash_length, char_set_var, hash_text):
+        #get node from DNS
+        peerIP, peerTimes, peerRecordID = getPeerIP()
+        #create message, send to peerIP[0]
+        ni.ifaddresses('eth0')
+        ip = ni.ifaddresses('eth0')[2][0]['addr']
+        hashItem = hashSubmission(ip, peerIP[0], hash_type_var, hash_text, hash_length, char_set_var)
+        print (peerIP[0])
+        firstNode = chordNode()
+        firstNode.IpAddress = peerIP[0]
+        firstNode.port = 838
+        submitToNetwork(firstNode, hashItem)
 
 class JoinPage(tk.Frame):
 
@@ -150,6 +157,24 @@ class JoinPage(tk.Frame):
         button = tk.Button(self, text="Go to the start page",
                            command=lambda: controller.show_frame("MainPage"))
         button.pack()
+        joinButton = tk.Button(self, text="Join NOW", command=lambda: self.joinNetwork())
+        joinButton.pack(side="top")
+
+    def joinNetwork(self):
+        #trying to join network; do bootstrapping things
+        peerIP, peerTimes, peerRecordID = getPeerIP()
+        print ("in here")
+        #if len(peerIP) > 5:
+        #   removeOldestIPEntry()
+        #postHostIP()
+        
+        #test code ONLY -- hardcoded IP address !! --
+        #assuming call back from DNS gets back 192.168.208.172
+        params = ["-p 838"]#-l 192.168.208.173"]
+        connectThread = Thread(target=mainChord, args=(params)) 
+        connectThread.daemon = False
+        connectThread.start()
+        
 
 class ResultPage(tk.Frame):
     def __init__(self, parent, controller):

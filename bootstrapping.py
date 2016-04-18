@@ -9,8 +9,7 @@ import json
 # postHostIP() : gets its own IP address, adds it to the DNS record
 # removeOldestEntry() : calls getPeerIP(), finds the oldest, and removes it using removeOldestEntry(record_num)
 # removeIPRecord(record_num) : takes record number as param. Uses this number to delete DNS entry for that record.
-# postPass2DNS(hash_string) : takes string of format "abcd...wxyz:<password>" where abcd is first 4 chars of hash, wxyz are last 4
-#
+# 
 
 def getPeerIP():
 
@@ -135,4 +134,5 @@ def postPass2DNS(hash_string):
     r = requests.post(url, data=json.dumps(data), headers=headers)
         
     return
+
 

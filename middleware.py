@@ -1,28 +1,31 @@
 #!/usr/bin/env python
 import subprocess
 import time
+from chord_node import *
 
-def crack(hash_type, hash_len, char_set, hash_text):
+def crack(hash_type, hash_len, char_set, hash_text, beginKey, endKey):
 	
     if hash_type is "NTLM":
        hashtype = 1000 #ntlm
     else:
        hashtype = 1000 #for now, just always do NTLM
 
-    attack = 3 #for now, always use brute force
     #get number of chars
     chars = int(hash_len)
     #maxKS size = chars^number
     maxKS = 26**chars
 
     #distributed commands
-    skipnum = 0
-    limitnum = int(maxKS/8)
-    chunk_size = int(maxKS/8)
+    beginKey = int(beginKey)
+    endKey = int(endKey)
     
-    
-    charstyle = "l"
-    
+    #get total size of KS this node is responsible for
+    if endKey < beginKey:    #it loops over n|0
+       ksSize = maxKS-beginKey+endKey
+    else:
+       ksSize = endKey-beginKey
+
+    chunk_size = int(ksSize/16)
     hash1 = hash_text.lower()
 
     #create file of hash
@@ -33,13 +36,16 @@ def crack(hash_type, hash_len, char_set, hash_text):
     pwd_str = ""
     for x in range(0, chars):
       pwd_str = pwd_str + "?l"  
-    #print (pwd_str)
-      
+
+
+    skipnum = beginKey
+    limitnum = beginKey + chunk_size
     solved = False
-    while solved is False:
+    ksExhausted = False
+    while solved is False and ksExhausted is False:
         #call hashcat (blocking)
         print ("Running hashcat process from " + str(skipnum) + " to " + str(limitnum)) 
-        sp = subprocess.Popen(['./hashcat-cli64.bin', '-m', str(hashtype), '-a', str(attack), '-s', str(skipnum), '-l', str(limitnum), 'hash.txt', pwd_str], stdout=subprocess.PIPE)
+        sp = subprocess.Popen(['./hashcat-cli64.bin', '-m', str(hashtype), '-a 3', '-s', str(skipnum), '-l', str(limitnum), 'hash.txt', pwd_str], stdout=subprocess.PIPE)
         data, errdata = sp.communicate()
         data = str(data)
 
@@ -50,9 +56,20 @@ def crack(hash_type, hash_len, char_set, hash_text):
             print ("We did it! Password is: " + password)
             solved = True
         
-        skipnum = limitnum+1
-        limitnum = limitnum+chunk_size
+        if skipnum < endKey and limitnum >= endKey:
+           print ("Exhausted assigned keyspace")
+           ksExhausted = True
+
+        updateProgress(limitnum)
+
+        if limitnum == maxKS:
+           skipnum = 0
+           limitnum = chunk_size
+        else:
+           skipnum = limitnum+1
+           limitnum = limitnum+chunk_size
         #print (str(skipnum) + " " + str(limitnum))
+        
         if limitnum > maxKS:
-           limitnum = maxKS
+           limitnum = maxKS 
     print ("Completed task")
