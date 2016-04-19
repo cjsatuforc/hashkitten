@@ -83,58 +83,68 @@ class NewTaskPage(tk.Frame):
         tk.Frame.__init__(self, parent)
         self.controller = controller
 
+        label_blank1 = tk.Label(self)
+        label_blank1.pack(side="top", fill="both", pady="3")
+
         label = tk.Label(self, text="Crack a New Hash", font=TITLE_FONT)
         label.pack(side="top", fill="x", pady=10)
 
+        label_blank1 = tk.Label(self)
+        label_blank1.pack(side="top", fill="both", pady="3")
+
         # hash type
         hash_container = tk.Frame(self)
-        hash_container.pack(side="top", fill="x", pady=5)
+        hash_container.pack(side="top", pady=5)
         label_hash_content = tk.Label(hash_container, text="Hash Type:   ")
-        label_hash_content.pack(side="left", fill="x")
+        label_hash_content.pack(side="left")
         hash_type_var = tk.StringVar(hash_container)
         option = tk.OptionMenu(hash_container, hash_type_var, "NTLM")
         option.configure(width=40)
-        option.pack(side="left", fill="x")
+        option.pack(side="left")
 
         # hash length
         hash_container = tk.Frame(self)
-        hash_container.pack(side="top", fill="x", pady=5)
+        hash_container.pack(side="top", pady=5)
         label_hash_content = tk.Label(hash_container, text="Password Length: ")
-        label_hash_content.pack(side="left", fill="x")
+        label_hash_content.pack(side="left")
         hash_length_text = tk.StringVar()
-        hash_content = tk.Entry(hash_container, textvariable=hash_length_text, bg="white", width=34)
-        hash_content.pack(side="left", fill="x")
+        hash_content = tk.Entry(hash_container, textvariable=hash_length_text, bg="white", width=36)
+        hash_content.pack(side="left")
 
         # Char Set
         hash_container = tk.Frame(self)
-        hash_container.pack(side="top", fill="x", pady=5)
+        hash_container.pack(side="top",  pady=5)
         label_hash_content = tk.Label(hash_container, text="Char Set:      ")
-        label_hash_content.pack(side="left", fill="x")
+        label_hash_content.pack(side="left")
         char_set_var = tk.StringVar(hash_container)
         option = tk.OptionMenu(hash_container, char_set_var, "lower", "UPPER", "tOgGlE")
         option.configure(width=40)
-        option.pack(side="left", fill="x")
+        option.pack(side="left")
 
         # hash
         hash_container = tk.Frame(self)
-        hash_container.pack(side="top", fill="x", pady=5)
+        hash_container.pack(side="top", pady=5)
         label_hash_content = tk.Label(hash_container, text="Hash:             ")
-        label_hash_content.pack(side="left", fill="x")
+        label_hash_content.pack(side="left")
         hash_text = tk.StringVar();
         hash_content = tk.Entry(hash_container, textvariable=hash_text, bg="white", width=40)
-        hash_content.pack(side="left", fill="x")
+        hash_content.pack(side="left")
+
+        label_blank1 = tk.Label(self)
+        label_blank1.pack(side="top", fill="both", pady="20")
 
         # start button and back button
         # start_hashkittens() is the function to be called when clicking the button
         # this is an example of get input value and print it through a bind function
         start_button = tk.Button(self, text="START", width=25,
                                  command=lambda: self.start_hashkittens(hash_type_var.get(), hash_length_text.get(), char_set_var.get(), hash_text.get()))
-        start_button.pack(side="top", fill="x")
+        start_button.pack()
         back_button = tk.Button(self, text="BACK", width=25,
                            command=lambda: controller.show_frame("MainPage"))
-        back_button.pack(side="top", fill="x")
+        back_button.pack()
 
     def start_hashkittens(self, hash_type_var, hash_length, char_set_var, hash_text):
+        print("start_hashkittens")
         #get node from DNS
         peerIP, peerTimes, peerRecordID = getPeerIP()
         #create message, send to peerIP[0]
@@ -147,18 +157,64 @@ class NewTaskPage(tk.Frame):
         firstNode.port = 838
         submitToNetwork(firstNode, hashItem)
 
+
 class JoinPage(tk.Frame):
 
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         self.controller = controller
-        label = tk.Label(self, text="This is page 2", font=TITLE_FONT)
+
+        label_blank1 = tk.Label(self)
+        label_blank1.pack(side="top", fill="both", pady="3")
+
+        label = tk.Label(self, text="Join Running Task", font=TITLE_FONT)
         label.pack(side="top", fill="x", pady=10)
-        button = tk.Button(self, text="Go to the start page",
+
+        # A function to collect current tasks' statuses
+        hash_list = self.getRunningHashList()
+
+        # First row of the talbe
+        topFrme = tk.Frame(self)
+        label = tk.Label(topFrme, text="No.", width=4)
+        label.pack(side="left", fill="x", expand=True)
+        label = tk.Label(topFrme, text="Hash", width=39)
+        label.pack(side="left", fill="x", expand=True)
+        label = tk.Label(topFrme, text="Status", width=6)
+        label.pack(side="left")
+        label = tk.Label(topFrme, text="", width=4)
+        label.pack(side="left", expand=True)
+        topFrme.pack()
+
+        # generate task list
+        count = 0
+        for hash_task in hash_list:
+
+            hash = hash_task[0]
+            status = hash_task[1]
+
+            topFrme = tk.Frame(self)
+            label = tk.Label(topFrme, text=count, width=4)
+            label.pack(side="left", fill="x", expand=True)
+            label = tk.Label(topFrme, text=hash, width = 40)
+            label.pack(side="left", fill="x", expand=True)
+            label = tk.Label(topFrme, width=4, background = self.getStatusColor(status))
+            label.pack(side='left')
+            if(status == 0) :
+                button = tk.Button(topFrme, text='Join', width=5, command=lambda: self.joinNetwork())
+                button.pack(side="left", expand=True)
+            else:
+                button = tk.Button(topFrme, text='Wait', width=5)
+                button.pack(side="left", expand=True)
+            topFrme.pack(fill='x')
+            count += 1
+
+        # back button
+        label_blank1 = tk.Label(self)
+        label_blank1.pack(side="top", fill="both", pady="80")
+
+        button = tk.Button(self, text="BACK", width = 25,
                            command=lambda: controller.show_frame("MainPage"))
         button.pack()
-        joinButton = tk.Button(self, text="Join NOW", command=lambda: self.joinNetwork())
-        joinButton.pack(side="top")
 
     def joinNetwork(self):
         #trying to join network; do bootstrapping things
@@ -167,14 +223,34 @@ class JoinPage(tk.Frame):
         #if len(peerIP) > 5:
         #   removeOldestIPEntry()
         #postHostIP()
-        
+
         #test code ONLY -- hardcoded IP address !! --
         #assuming call back from DNS gets back 192.168.208.172
         params = ["-p 838"]#-l 192.168.208.173"]
-        connectThread = Thread(target=mainChord, args=(params)) 
+        connectThread = Thread(target=mainChord, args=(params))
         connectThread.daemon = False
         connectThread.start()
-        
+
+    def getStatusColor(self, status):
+        if status == 0:
+            return "green" # running
+        if status == 1:
+            return "grey" # paused
+        if status == 2:
+            return "red" # failure
+
+    # this function should be refactored in other class
+    # in each element in hash_list
+    # the first value is the content of hash
+    # the second value is the current status of the task
+    def getRunningHashList(self):
+        hash_list = []
+        hash_list.append(["abcdefghijklmn",0])
+        hash_list.append(["opqrstuvkkkwxyz",1])
+        hash_list.append(["ABCDEFGHIJKLMN",2])
+        hash_list.append(["OPQRSTUVWXYZ",0])
+        return hash_list
+
 
 class ResultPage(tk.Frame):
     def __init__(self, parent, controller):
