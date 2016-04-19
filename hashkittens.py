@@ -166,7 +166,6 @@ class JoinPage(tk.Frame):
 
         label_blank1 = tk.Label(self)
         label_blank1.pack(side="top", fill="both", pady="3")
-
         label = tk.Label(self, text="Join Running Task", font=TITLE_FONT)
         label.pack(side="top", fill="x", pady=10)
 
@@ -211,7 +210,6 @@ class JoinPage(tk.Frame):
         # back button
         label_blank1 = tk.Label(self)
         label_blank1.pack(side="top", fill="both", pady="80")
-
         button = tk.Button(self, text="BACK", width = 25,
                            command=lambda: controller.show_frame("MainPage"))
         button.pack()
@@ -220,9 +218,9 @@ class JoinPage(tk.Frame):
         #trying to join network; do bootstrapping things
         peerIP, peerTimes, peerRecordID = getPeerIP()
         print ("in here")
-        #if len(peerIP) > 5:
-        #   removeOldestIPEntry()
-        #postHostIP()
+        if len(peerIP) > 5:
+          removeOldestIPEntry()
+        postHostIP()
 
         #test code ONLY -- hardcoded IP address !! --
         #assuming call back from DNS gets back 192.168.208.172
@@ -239,7 +237,7 @@ class JoinPage(tk.Frame):
         if status == 2:
             return "red" # failure
 
-    # this function should be refactored in other class
+    # todo: this function should be refactored in other class
     # in each element in hash_list
     # the first value is the content of hash
     # the second value is the current status of the task
@@ -247,7 +245,7 @@ class JoinPage(tk.Frame):
         hash_list = []
         hash_list.append(["abcdefghijklmn",0])
         hash_list.append(["opqrstuvkkkwxyz",1])
-        hash_list.append(["ABCDEFGHIJKLMN",2])
+        hash_list.append(["ABCDEFGHIJKLMNOPQRSTUVWXYZ",2])
         hash_list.append(["OPQRSTUVWXYZ",0])
         return hash_list
 
@@ -256,9 +254,34 @@ class ResultPage(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         self.controller = controller
-        label = tk.Label(self, text="This is result page", font=TITLE_FONT)
+
+        label_blank1 = tk.Label(self)
+        label_blank1.pack(side="top", fill="both", pady="3")
+        label = tk.Label(self, text="Crack Result", font=TITLE_FONT)
         label.pack(side="top", fill="x", pady=10)
-        button = tk.Button(self, text="Go to the start page",
+
+        # todo: need to collect result from else where
+        # todo: should trigger result page after the task is done
+        hash = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        hash_result = "hashkitten"
+
+        topFrame = tk.Frame(self)
+        label = tk.Label(topFrame, text="input:", font=("Helvetica", 15, "bold"))
+        label.pack(side='left')
+        label = tk.Label(topFrame, text=hash)
+        label.pack(side='left')
+        topFrame.pack(side='top')
+
+        topFrame = tk.Frame(self)
+        label = tk.Label(topFrame, text="result:", font=("Helvetica", 15, "bold"))
+        label.pack(side='left')
+        label = tk.Label(topFrame, text=hash_result)
+        label.pack(side='left')
+        topFrame.pack(side='top')
+
+        label_blank1 = tk.Label(self)
+        label_blank1.pack(side="top", fill="both", pady="80")
+        button = tk.Button(self, text="Back", width=25,
                            command=lambda: controller.show_frame("MainPage"))
         button.pack()
 
