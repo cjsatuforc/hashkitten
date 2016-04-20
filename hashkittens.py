@@ -4,6 +4,7 @@ from PIL import Image, ImageTk
 from chord_node import *
 from bootstrapping import *
 from communication_layer import *
+from middleware import *
 
 TITLE_FONT = ("Helvetica", 18, "bold")
 
@@ -78,10 +79,11 @@ class MainPage(tk.Frame):
 
 class NewTaskPage(tk.Frame):
 
+
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         self.controller = controller
-
+        self.listenThread = None
         label = tk.Label(self, text="Crack a New Hash", font=TITLE_FONT)
         label.pack(side="top", fill="x", pady=10)
 
@@ -140,11 +142,18 @@ class NewTaskPage(tk.Frame):
         ni.ifaddresses('eth0')
         ip = ni.ifaddresses('eth0')[2][0]['addr']
         hashItem = hashSubmission(ip, peerIP[0], hash_type_var, hash_text, hash_length, char_set_var)
-        print (hash_length)
         firstNode = chordNode()
         firstNode.IpAddress = peerIP[0]
         firstNode.port = 838
         submitToNetwork(firstNode, hashItem)
+
+        #client needs to wait for answer
+        #Start listener thread
+        print ("Waiting for password for hash: " + str(hashItem.hashtext))
+        if self.listenThread is None:
+                self.listenThread = Thread(target=client_listener, args=(ip,rpc_handler))
+                self.listenThread.daemon = False
+                self.listenThread.start()
 
 class JoinPage(tk.Frame):
 
@@ -162,7 +171,6 @@ class JoinPage(tk.Frame):
     def joinNetwork(self):
         #trying to join network; do bootstrapping things
         peerIP, peerTimes, peerRecordID = getPeerIP()
-        print ("in here")
         #if len(peerIP) > 5:
         #   removeOldestIPEntry()
         #postHostIP()

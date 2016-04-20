@@ -20,6 +20,21 @@ def chord_rpc_listener(currentNode, rpc_handler):
 		th.start()
 	return
 
+def client_listener(ipaddr, rpc_handler):
+	try:
+		global serverSocket
+		serverSocket = socket(AF_INET, SOCK_STREAM)
+		addr = (ipaddr, 838)
+		serverSocket.bind((addr))
+		serverSocket.listen(MAX_CONNECTIONS)
+		print ("Waiting for the password...")
+		while 1:
+			conn, addr = serverSocket.accept() #accept the connection
+			th = Thread(target=rpc_handler, args=(conn, addr))
+			th.start()
+		return
+	except Exception as e:
+		print ("socket already open, no biggie")
 
 def serialize_message(message):
 	return pickle.dumps(message)
@@ -50,4 +65,3 @@ def send_packet(requestPacket, remoteNode):
 	conn.shutdown(1)
 	conn.close()
 	return replyMsg
-

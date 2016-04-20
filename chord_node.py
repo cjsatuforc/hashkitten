@@ -49,6 +49,7 @@ class chordMessageType():
 		GET_CLOSEST_PRECEDING_FINGER = 7
 		ACK = 8
 		SUBMISSION_INFO = 9
+		PASSWORD_ANSWER = 10
 
 class chordMessage():
 	def __init__(self, messageSignature, message, extraMessage):
@@ -78,6 +79,19 @@ def submitToNetwork(remoteNode, hashInfo):
 		print ("[submit to network] ***** FATAL **** Something went wrong")
 		pass
 	return
+
+def submitToSuperNode(password):
+
+	supNode = chordNode()
+	supNode.IpAddress = currentHash.superNode
+	supNode.port = 838
+	requestPacket = chordMessage(chordMessageType.PASSWORD_ANSWER, password, 0)
+	reply = send_packet(requestPacket, supNode)
+	if reply is None:
+		print ("[submit to supernode] ***** FATAL **** Something went wrong")
+		pass
+	return
+
 
 def updateProgress(ks_num):
         #print ("ks Num is: " + str(ks_num))        
@@ -175,10 +189,16 @@ def rpc_handler(conn, addr):
 				#print ("Pred Relative ID: " + str(pred_rel_id))
 
 				#start hashcat thread
-				print ("Sending to hashcat " + str(pred_rel_id) + ":" + str(relative_id))				
+				print ("Sending to hashcat " + str(pred_rel_id+1) + ":" + str(relative_id))				
 				hashcatThread = Thread(target=crack, args=(currentHash.hashtype, currentHash.pwdlen, currentHash.charset, currentHash.hashtext, pred_rel_id+1, relative_id))
 				hashcatThread.daemon = True
 				hashcatThread.start()
+		elif request.messageSignature == chordMessageType.PASSWORD_ANSWER:			
+			password = request.message
+			print ("Password is: " + str(password))
+			replyMessage = chordMessage(chordMessageType.ACK, 0, 0)
+			conn.send(serialize_message(replyMessage))
+			conn.close()
 				
 def get_relative_nodeID(nodeId,keyspace):
 	maxnumber = 0xffffffffffffffffffffffffffffffffffffffff	

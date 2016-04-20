@@ -1,7 +1,6 @@
 import subprocess
 from threading import *
 import time
-from chord_node import *
 
 def crack(hash_type, hash_len, char_set, hash_text, beginKey, endKey):
 	
@@ -55,6 +54,9 @@ def crack(hash_type, hash_len, char_set, hash_text, beginKey, endKey):
             password = data[len(hash1)+1:data.find("\\n")]
             print ("We did it! Password is: " + password)
             solved = True
+            #send message to superNode
+            from chord_node import submitToSuperNode
+            submitToSuperNode(password)
         
         #normal case
         if endKey > beginKey and limitnum >= endKey:
