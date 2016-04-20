@@ -1,7 +1,6 @@
 import tkinter as tk   # python3
 from PIL import Image, ImageTk
 #import Tkinter as tk   # python
-from middleware import *
 from chord_node import *
 from bootstrapping import *
 from communication_layer import *
@@ -141,7 +140,7 @@ class NewTaskPage(tk.Frame):
         ni.ifaddresses('eth0')
         ip = ni.ifaddresses('eth0')[2][0]['addr']
         hashItem = hashSubmission(ip, peerIP[0], hash_type_var, hash_text, hash_length, char_set_var)
-        print (peerIP[0])
+        print (hash_length)
         firstNode = chordNode()
         firstNode.IpAddress = peerIP[0]
         firstNode.port = 838

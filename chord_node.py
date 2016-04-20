@@ -9,6 +9,7 @@ from hash_helper import *
 import argparse
 from threading import *
 from communication_layer import *
+from middleware import *
 
 ####################### chord node definition #####################################
 class chordNode():
@@ -27,15 +28,15 @@ class hashSubmission():
 	origNode = ""
 	hashtype = ""
 	hashtext = ""
-	pwd_len = 0
+	pwdlen = ''
 	charset = ''
 
-	def __init__(self, superNode, origNode, hashtype, hashtext, pwd_len, charset):
+	def __init__(self, superNode, origNode, hashtype, hashtext, pwdlen, charset):
 		self.superNode = superNode
 		self.origNode = origNode
 		self.hashtype = hashtype
 		self.hashtext = hashtext
-		self.pwd_len = pwd_len
+		self.pwdlen = pwdlen
 		self.charset = charset
 
 class chordMessageType():
@@ -152,9 +153,37 @@ def rpc_handler(conn, addr):
 			conn.close()
 			#if this is a new hash
 			if currentHash.hashtext != hashItem.hashtext:
+				#set hash, then pass hash around
 				currentHash = hashItem
+				print (hashItem.pwdlen)
 				tmpNode = get_immediate_successor()
 				submitToNetwork(tmpNode, hashItem)
+				print (currentHash.hashtype)
+				print (currentHash.pwdlen)
+				print (currentHash.charset)
+				print (currentHash.hashtext)
+				#calculate relative keyspace ID
+				keyspace = 26**int(currentHash.pwdlen)
+				print (str(keyspace))
+				print (str(currentHash.pwdlen))
+				relative_id = get_relative_nodeID(currentNode.nodeId.id_val, keyspace)
+				#print ("Relative ID: " + str(relative_id))
+
+				#calculate predecessors keyspace ID
+				predecessor = get_curr_predecessor()
+				pred_rel_id = get_relative_nodeID(predecessor.nodeId.id_val, keyspace)
+				#print ("Pred Relative ID: " + str(pred_rel_id))
+
+				#start hashcat thread
+				print ("Sending to hashcat " + str(pred_rel_id) + ":" + str(relative_id))				
+				hashcatThread = Thread(target=crack, args=(currentHash.hashtype, currentHash.pwdlen, currentHash.charset, currentHash.hashtext, pred_rel_id+1, relative_id))
+				hashcatThread.daemon = True
+				hashcatThread.start()
+				
+def get_relative_nodeID(nodeId,keyspace):
+	maxnumber = 0xffffffffffffffffffffffffffffffffffffffff	
+	value = int(nodeId,0)
+	return int( (value*keyspace) / maxnumber)
 
 def get_curr_predecessor():
 	global predecessor
@@ -446,6 +475,9 @@ def mainChord(config_str):
 	#	exit(0)
 		
 	#currentNode.port = args.port
+
+
+
 	currentNode.port=838
 	currentNode.submitterThreadPort=12221
 	if "-l" in config_str:
@@ -473,11 +505,13 @@ def mainChord(config_str):
 	if lookupNode is None:
 		set_this_nodes_predecessor(currentNode)
 	
+
 	#Start listener threads
 	listenThread = Thread(target=chord_rpc_listener, args=(currentNode,rpc_handler))
 	listenThread.daemon = True
 	listenThread.start()
 	time.sleep(1)
+
 
 	if lookupNode is not None:
 		#This is not the first node

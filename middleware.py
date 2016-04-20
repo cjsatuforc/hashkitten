@@ -1,5 +1,5 @@
-#!/usr/bin/env python
 import subprocess
+from threading import *
 import time
 from chord_node import *
 
@@ -56,11 +56,16 @@ def crack(hash_type, hash_len, char_set, hash_text, beginKey, endKey):
             print ("We did it! Password is: " + password)
             solved = True
         
+        #normal case
+        if endKey > beginKey and limitnum >= endKey:
+           print ("Exhausted assigned keyspace")
+           ksExhausted = True
+        #overflowed the circle case    n|0
         if skipnum < endKey and limitnum >= endKey:
            print ("Exhausted assigned keyspace")
            ksExhausted = True
 
-        updateProgress(limitnum)
+        #updateProgress(limitnum)
 
         if limitnum == maxKS:
            skipnum = 0
