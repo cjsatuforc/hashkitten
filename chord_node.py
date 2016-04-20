@@ -13,7 +13,7 @@ from communication_layer import *
 ####################### chord node definition #####################################
 class chordNode():
 	IpAddress = "localhost"
-	port = 0
+	port = 838
 	nodeId = 0
 
 	def __eq__(self, remote):
@@ -60,7 +60,7 @@ ni.ifaddresses('eth0')
 ip = ni.ifaddresses('eth0')[2][0]['addr']
 currentNode.IpAddress = ip
 mac = get_mac()
-currentHash = None
+currentHash = hashSubmission("", "", "", "", 0, '')
 ksProgress = None
 
 #Finger table
@@ -84,6 +84,7 @@ def updateProgress(ks_num):
 
 def rpc_handler(conn, addr):
 	global currentNode
+	global currentHash
 	requestMsg = conn.recv(MAX_RECV_SIZE)
 	conn.settimeout(TIMEOUT)
 	#(host, port) = conn.getsockanme()
@@ -137,19 +138,23 @@ def rpc_handler(conn, addr):
 		elif request.messageSignature == chordMessageType.UPDATE_FINGER_TABLE:
 			#print "[rpc_handler]: Received Request to Update Finger Table with Following Details:"
 			#print "Index Entry: " + str(request.extraMessage)
-			#print "Node to be Entered: "
+			#print "Node to	 be Entered: "
 			#print_node_details(request.message)
 			update_current_nodes_finger_table(request.message, request.extraMessage)
 			replyMessage = chordMessage(chordMessageType.ACK, 0, 0)
 			conn.send(serialize_message(replyMessage))
 			conn.close()
-		elif request.messageSignature == chordMessageType.SUBMISSION_INFO:
-			print ("recvd a request")			
+		elif request.messageSignature == chordMessageType.SUBMISSION_INFO:			
 			hashItem = request.message
-			currentHash = hashItem
+			print ("recvd a request..." + str(hashItem.hashtext))
 			replyMessage = chordMessage(chordMessageType.ACK, 0, 0)
 			conn.send(serialize_message(replyMessage))
 			conn.close()
+			#if this is a new hash
+			if currentHash.hashtext != hashItem.hashtext:
+				currentHash = hashItem
+				tmpNode = get_immediate_successor()
+				submitToNetwork(tmpNode, hashItem)
 
 def get_curr_predecessor():
 	global predecessor

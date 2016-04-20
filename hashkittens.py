@@ -170,7 +170,7 @@ class JoinPage(tk.Frame):
         
         #test code ONLY -- hardcoded IP address !! --
         #assuming call back from DNS gets back 192.168.208.172
-        params = ["-p 838"]#-l 192.168.208.173"]
+        params = [""]#-l 192.168.208.173"]
         connectThread = Thread(target=mainChord, args=(params)) 
         connectThread.daemon = False
         connectThread.start()
