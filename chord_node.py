@@ -30,6 +30,7 @@ class hashSubmission():
 	hashtext = ""
 	pwdlen = ''
 	charset = ''
+	haltSig = None
 
 	def __init__(self, superNode, origNode, hashtype, hashtext, pwdlen, charset):
 		self.superNode = superNode
@@ -50,6 +51,7 @@ class chordMessageType():
 		ACK = 8
 		SUBMISSION_INFO = 9
 		PASSWORD_ANSWER = 10
+		STOP_WORKING = 11
 
 class chordMessage():
 	def __init__(self, messageSignature, message, extraMessage):
@@ -71,6 +73,18 @@ fingerTableLock = Lock()
 predecessorNodeLock = Lock()
 
 predecessor = currentNode
+
+
+def tellSuccessorDone():
+	if currentHash.haltSig is False:
+		tmpNode = get_immediate_successor()	
+		requestPacket = chordMessage(chordMessageType.STOP_WORKING, 0, 0)
+		reply = send_packet(requestPacket, tmpNode)
+		if reply is None:
+			print ("[sending successor stop working failed] ***** FATAL **** Something went wrong")
+			pass
+		return
+
 
 def submitToNetwork(remoteNode, hashInfo):
 	requestPacket = chordMessage(chordMessageType.SUBMISSION_INFO, hashInfo, 0)
@@ -172,14 +186,14 @@ def rpc_handler(conn, addr):
 				print (hashItem.pwdlen)
 				tmpNode = get_immediate_successor()
 				submitToNetwork(tmpNode, hashItem)
-				print (currentHash.hashtype)
-				print (currentHash.pwdlen)
-				print (currentHash.charset)
-				print (currentHash.hashtext)
+				#print (currentHash.hashtype)
+				#print (currentHash.pwdlen)
+				#print (currentHash.charset)
+				#print (currentHash.hashtext)
 				#calculate relative keyspace ID
 				keyspace = 26**int(currentHash.pwdlen)
-				print (str(keyspace))
-				print (str(currentHash.pwdlen))
+				#print (str(keyspace))
+				#print (str(currentHash.pwdlen))
 				relative_id = get_relative_nodeID(currentNode.nodeId.id_val, keyspace)
 				#print ("Relative ID: " + str(relative_id))
 
@@ -187,10 +201,10 @@ def rpc_handler(conn, addr):
 				predecessor = get_curr_predecessor()
 				pred_rel_id = get_relative_nodeID(predecessor.nodeId.id_val, keyspace)
 				#print ("Pred Relative ID: " + str(pred_rel_id))
-
+				currentHash.haltSig = False
 				#start hashcat thread
 				print ("Sending to hashcat " + str(pred_rel_id+1) + ":" + str(relative_id))				
-				hashcatThread = Thread(target=crack, args=(currentHash.hashtype, currentHash.pwdlen, currentHash.charset, currentHash.hashtext, pred_rel_id+1, relative_id))
+				hashcatThread = Thread(target=crack, args=(currentHash, pred_rel_id+1, relative_id))
 				hashcatThread.daemon = True
 				hashcatThread.start()
 		elif request.messageSignature == chordMessageType.PASSWORD_ANSWER:			
@@ -199,7 +213,19 @@ def rpc_handler(conn, addr):
 			replyMessage = chordMessage(chordMessageType.ACK, 0, 0)
 			conn.send(serialize_message(replyMessage))
 			conn.close()
-				
+		elif request.messageSignature == chordMessageType.STOP_WORKING:
+			replyMessage = chordMessage(chordMessageType.ACK, 0, 0)
+			conn.send(serialize_message(replyMessage))
+			conn.close()
+			if currentHash.haltSig is False:
+				currentHash.haltSig = True
+				print ("stopping working cause i was told to halt")
+				#tell neighbor
+				tellSuccessorDone()
+
+def getStatus():
+	return currentHash.haltSig
+			
 def get_relative_nodeID(nodeId,keyspace):
 	maxnumber = 0xffffffffffffffffffffffffffffffffffffffff	
 	value = int(nodeId,0)

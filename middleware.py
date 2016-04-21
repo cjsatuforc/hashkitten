@@ -2,15 +2,15 @@ import subprocess
 from threading import *
 import time
 
-def crack(hash_type, hash_len, char_set, hash_text, beginKey, endKey):
+def crack(currentHash, beginKey, endKey):
 	
-    if hash_type is "NTLM":
+    if currentHash.hashtype is "NTLM":
        hashtype = 1000 #ntlm
     else:
        hashtype = 1000 #for now, just always do NTLM
 
     #get number of chars
-    chars = int(hash_len)
+    chars = int(currentHash.pwdlen)
     #maxKS size = chars^number
     maxKS = 26**chars
 
@@ -25,7 +25,7 @@ def crack(hash_type, hash_len, char_set, hash_text, beginKey, endKey):
        ksSize = endKey-beginKey
 
     chunk_size = int(ksSize/16)
-    hash1 = hash_text.lower()
+    hash1 = currentHash.hashtext.lower()
 
     #create file of hash
     hfile = open('hash.txt', 'w')
@@ -39,14 +39,19 @@ def crack(hash_type, hash_len, char_set, hash_text, beginKey, endKey):
 
     skipnum = beginKey
     limitnum = beginKey + chunk_size
+    diff = limitnum-skipnum
     solved = False
     ksExhausted = False
-    while solved is False and ksExhausted is False:
+    from chord_node import getStatus
+    halt = getStatus()
+    print (str(halt))
+    while solved is False and ksExhausted is False and halt is False:
         #call hashcat (blocking)
-        print ("Running hashcat process from " + str(skipnum) + " to " + str(limitnum)) 
-        sp = subprocess.Popen(['./hashcat-cli64.bin', '-m', str(hashtype), '-a 3', '-s', str(skipnum), '-l', str(limitnum), 'hash.txt', pwd_str], stdout=subprocess.PIPE)
+        print ("Running hashcat process from " + str(skipnum) + " to " + str(limitnum) + " for len " + str(diff)) 
+        sp = subprocess.Popen(['./hashcat-cli64.bin', '-m', str(hashtype), '-a 3', '-s', str(skipnum), '-l', str(diff), 'hash.txt', pwd_str], stdout=subprocess.PIPE)
         data, errdata = sp.communicate()
         data = str(data)
+        halt = getStatus()
 
         #check if run was successful
         if "All hashes have been recovered" in data:
@@ -57,6 +62,8 @@ def crack(hash_type, hash_len, char_set, hash_text, beginKey, endKey):
             #send message to superNode
             from chord_node import submitToSuperNode
             submitToSuperNode(password)
+            from chord_node import tellSuccessorDone
+            tellSuccessorDone() 
         
         #normal case
         if endKey > beginKey and limitnum >= endKey:
