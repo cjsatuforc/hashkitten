@@ -19,7 +19,7 @@ class chordNode():
 
 	def __eq__(self, remote):
 		if(self.nodeId == remote.nodeId and self.IpAddress == remote.IpAddress and self.port == remote.port):
-			#print "[chordNode eq overloading ] Returning TRUE"
+			#print ("[chordNode eq overloading ] Returning TRUE")
 			return True
 		return False
 
@@ -52,6 +52,8 @@ class chordMessageType():
 		SUBMISSION_INFO = 9
 		PASSWORD_ANSWER = 10
 		STOP_WORKING = 11
+		HEARTBEAT = 12
+		HEARTBEAT_REPLY = 13
 
 class chordMessage():
 	def __init__(self, messageSignature, message, extraMessage):
@@ -67,13 +69,14 @@ mac = get_mac()
 currentHash = hashSubmission("", "", "", "", 0, '')
 ksProgress = None
 
-#Finger table
 fingerTable = []
 fingerTableLock = Lock()
 predecessorNodeLock = Lock()
-
 predecessor = currentNode
-
+predecessorNodeLock = Lock()
+successorList = []
+successorListLock = Lock()
+correctionAttempts = 0
 
 def tellSuccessorDone():
 	tmpNode = get_immediate_successor()	
@@ -115,25 +118,25 @@ def rpc_handler(conn, addr):
 	requestMsg = conn.recv(MAX_RECV_SIZE)
 	conn.settimeout(TIMEOUT)
 	#(host, port) = conn.getsockanme()
-	#print "Got a connection from " + str(addr)
+	#print ("Got a connection from " + str(addr))
 	if requestMsg:
 		request = unserialize_message(requestMsg)
 		if request.messageSignature == chordMessageType.LOOK_UP_KEY_REQUEST:
 			requestedKey = request.message
-			#print "[rpc_handler]: Received Request to lookup Key: " + requestedKey.id_val
+			#print ("[rpc_handler]: Received Request to lookup Key: " + requestedKey.id_val)
 			tmpNode = look_up_key(request.message)
 			replyMessage = chordMessage(chordMessageType.ACK, tmpNode, 0)
 			conn.send(serialize_message(replyMessage))
 			conn.close()
 		elif request.messageSignature == chordMessageType.GET_PREDECESSOR:
-			#print "[rpc_handler]: Received request to get Predecessor Node"
+			#print ("[rpc_handler]: Received request to get Predecessor Node")
 			node = get_curr_predecessor()
 			replyMessage = chordMessage(chordMessageType.ACK, node, 0)
 			conn.send(serialize_message(replyMessage))
 			conn.close()
 
 		elif request.messageSignature == chordMessageType.GET_SUCCESSOR:
-			#print "[rpc_handler]: Received request to get Successor Node"
+			#print ("[rpc_handler]: Received request to get Successor Node")
 			node = get_immediate_successor()
 			replyMessage = chordMessage(chordMessageType.ACK, node, 0)
 			conn.send(serialize_message(replyMessage))
@@ -141,31 +144,33 @@ def rpc_handler(conn, addr):
 
 		elif request.messageSignature == chordMessageType.UPDATE_PREDECESSOR:
 			node = request.message
-			#print "[rpc_handler]: My Predecessor will be set to following Node"
+			#print ("[rpc_handler]: My Predecessor will be set to following Node")
 			#print_node_details(node)
 			set_this_nodes_predecessor(node)
+			build_successor_list_thread()
 			replyMessage = chordMessage(chordMessageType.ACK, 0, 0)
 			conn.send(serialize_message(replyMessage))
 			conn.close()
 		elif request.messageSignature == chordMessageType.UPDATE_SUCCESSOR:
 			node = request.message
-			#print "[rpc_handler]: My Successor will be set to following Node"
+			#print ("[rpc_handler]: My Successor will be set to following Node") 
 			#print_node_details(node)
 			set_immediate_successor(node)
+			build_successor_list_thread()
 			replyMessage = chordMessage(chordMessageType.ACK, 0, 0)
 			conn.send(serialize_message(replyMessage))
 			conn.close()
 		elif request.messageSignature == chordMessageType.GET_CLOSEST_PRECEDING_FINGER:
 			requestedKey = request.message
-			#print "[rpc_handler]: Received Request GET_NEXT_NODE_PRED, Key: " + requestedKey.id_val
+			#print ("[rpc_handler]: Received Request GET_NEXT_NODE_PRED, Key: " + requestedKey.id_val
 			tmpNode = get_nearest_finger(requestedKey)
 			replyMessage = chordMessage(chordMessageType.ACK, tmpNode, 0)
 			conn.send(serialize_message(replyMessage))
 			conn.close()
 		elif request.messageSignature == chordMessageType.UPDATE_FINGER_TABLE:
-			#print "[rpc_handler]: Received Request to Update Finger Table with Following Details:"
-			#print "Index Entry: " + str(request.extraMessage)
-			#print "Node to	 be Entered: "
+			#print ("[rpc_handler]: Received Request to Update Finger Table with Following Details:"
+			#print ("Index Entry: " + str(request.extraMessage)
+			#print ("Node to	 be Entered: "
 			#print_node_details(request.message)
 			update_current_nodes_finger_table(request.message, request.extraMessage)
 			replyMessage = chordMessage(chordMessageType.ACK, 0, 0)
@@ -220,6 +225,10 @@ def rpc_handler(conn, addr):
 				print ("stopping working cause i was told to halt")
 				#tell neighbor
 				tellSuccessorDone()
+		elif request.messageSignature == chordMessageType.HEARTBEAT:
+			replyMessage = chordMessage(chordMessageType.HEARTBEAT_REPLY, 0, 0)
+			conn.send(serialize_message(replyMessage))
+			conn.close()
 
 def getStatus():
 	return currentHash.haltSig
@@ -229,17 +238,13 @@ def get_relative_nodeID(nodeId,keyspace):
 	value = int(nodeId,0)
 	return int( (value*keyspace) / maxnumber)
 
-def get_curr_predecessor():
-	global predecessor
-	predecessorNodeLock.acquire()
-	retNode = copy.deepcopy(predecessor)
-	predecessorNodeLock.release()
-	return retNode
 
 def look_up_key(key):
 	global currentNode
 	# n' = find_predecessor(id)
 	tmpNode = find_predecessor(key)
+	if tmpNode is None:
+		return None
 	# return n'.successor
 	if tmpNode == currentNode:
 		retNode = get_immediate_successor()
@@ -256,13 +261,15 @@ def find_predecessor(key):
 		else:
 			successor = rpc_get_successor(n_tmp)
 
-		if hash_between_last_equal(key, n_tmp.nodeId, successor.nodeId):
+		if successor is not None and hash_between_last_equal(key, n_tmp.nodeId, successor.nodeId):
 			return n_tmp
 		else:
 			if n_tmp == currentNode:
 				n_tmp = get_nearest_finger(key)
 			else:
 				n_tmp = rpc_closest_preceding_finger(key, n_tmp)
+			if n_tmp is None:
+				return None
 			if(n_tmp == currentNode):
 				return n_tmp
 	return None
@@ -277,9 +284,9 @@ def update_current_nodes_finger_table(node, index):
 	if hash_between_first_equal(node.nodeId, currentNode.nodeId, entry.nodeId):
 		fingerTableLock.acquire()
 		if(node.nodeId.id_val != currentNode.nodeId.id_val):
-			#print "[update_current_nodes_finger_table] index " + str(index) + " is updated to following node: "
+			#print ("[update_current_nodes_finger_table] index " + str(index) + " is updated to following node: ")
 			#print_node_details(node)
-			#print "because node: " + str(node.nodeId.id_val) + " is between first equal node: " + str(currentNode.nodeId.id_val) + "and node: " + str(entry.nodeId.id_val) + " and it is not currentNode"
+			#print ("because node: " + str(node.nodeId.id_val) + " is between first equal node: " + str(currentNode.nodeId.id_val) + "and node: " + str(entry.nodeId.id_val) + " and it is not currentNode")
 			fingerTable[index] = copy.deepcopy(node)
 		fingerTableLock.release()
 		remoteNode = get_curr_predecessor()		
@@ -296,6 +303,8 @@ def get_nearest_finger(key):
 		if hash_between(fingerTable[i].nodeId, currentNode.nodeId, key):
 			tmpNode = copy.deepcopy(fingerTable[i])
 			fingerTableLock.release()
+			if check_heartbeat(tmpNode) == False:
+				return get_immediate_successor()
 			return tmpNode
 	#this must be the closest node
 	fingerTableLock.release()
@@ -312,6 +321,23 @@ def init_finger_table():
 	fingerTableLock.release()
 	return
 
+def init_successor_list():
+	global successorList
+	global currentNode
+	successorListLock.acquire()
+	for i in range(0, 10):
+		tmpNode = copy.deepcopy(currentNode)
+		successorList.append(tmpNode)
+	successorListLock.release()
+	return
+
+################################### LOCAL NODE OPERATIONS ##############################
+def get_curr_predecessor():
+	global predecessor
+	predecessorNodeLock.acquire()
+	retNode = copy.deepcopy(predecessor)
+	predecessorNodeLock.release()
+	return retNode
 def set_this_nodes_predecessor(node):
 	global predecessor
 	predecessorNodeLock.acquire()
@@ -333,18 +359,27 @@ def get_immediate_successor():
 	fingerTableLock.release()
 	return node
 
-def set_remote_nodes_successor(remoteNode):
-	requestPacket = chordMessage(chordMessageType.UPDATE_SUCCESSOR, currentNode, 0)
-	#print "send_packet from set_remote_nodes_successor"
+######################### REMOTE RPC OPERATIONS ##########################################
+def check_heartbeat(remoteNode):
+	requestPacket = chordMessage(chordMessageType.HEARTBEAT, 0, 0)
 	reply = send_packet(requestPacket, remoteNode)
 	if reply is None:
-		print ("[set_remote_nodes_predecessor] ***** FATAL **** Something went wrong")
+		return False
+	else:
+		return True
+
+def set_remote_nodes_successor(remoteNode):
+	requestPacket = chordMessage(chordMessageType.UPDATE_SUCCESSOR, currentNode, 0)
+	#print ("send_packet from set_remote_nodes_successor")
+	reply = send_packet(requestPacket, remoteNode)
+	if reply is None:
+		print ("[set_remote_nodes_successor] ***** FATAL **** Something went wrong")
 		pass
 	return
 	
 def set_remote_nodes_predecessor(remoteNode):
 	requestPacket = chordMessage(chordMessageType.UPDATE_PREDECESSOR, currentNode, 0)
-	#print "send_packet from set_remote_nodes_predecessor"
+	#print ("send_packet from set_remote_nodes_predecessor")
 	reply = send_packet(requestPacket, remoteNode)
 	if reply is None:
 		print ("[set_remote_nodes_predecessor] ***** FATAL **** Something went wrong")
@@ -353,8 +388,8 @@ def set_remote_nodes_predecessor(remoteNode):
 
 def rpc_get_predecessor(remoteNode):
 	requestPacket = chordMessage(chordMessageType.GET_PREDECESSOR, 0, 0)
-	#print "send_packet from rpc_get_predecessor"
-	print_node_details(remoteNode)
+	#print ("send_packet from rpc_get_predecessor")
+	#print_node_details(remoteNode)
 	reply = send_packet(requestPacket, remoteNode)
 	if reply is None:
 		print ("[rpc_get_predecessor] ******* FATAL ****** Something is Worng")
@@ -363,7 +398,7 @@ def rpc_get_predecessor(remoteNode):
 
 def rpc_get_successor(remoteNode):
 	requestPacket = chordMessage(chordMessageType.GET_SUCCESSOR, 0, 0)
-	#print "send_packet from rpc_get_successor"
+	#print ("send_packet from rpc_get_successor")
 	reply = send_packet(requestPacket, remoteNode)
 	if reply is None:
 		print ("[rpc_get_successor] ******* FATAL ***** Something went wrong")
@@ -371,7 +406,7 @@ def rpc_get_successor(remoteNode):
 	return reply.message
 def rpc_closest_preceding_finger(key, remoteNode):
 	requestPacket = chordMessage(chordMessageType.GET_CLOSEST_PRECEDING_FINGER, key, 0)
-	#print "send_packet from rpc_closest_preceding_key"
+	#print ("send_packet from rpc_closest_preceding_key")
 	reply = send_packet(requestPacket, remoteNode)
 	if reply is None:
 		print ("[rpc_closest_preceding_finger] ****** FATAL **** Something is wrong")
@@ -380,7 +415,7 @@ def rpc_closest_preceding_finger(key, remoteNode):
 	
 def rpc_lookup_key(remoteNode, key):
 	requestPacket = chordMessage(chordMessageType.LOOK_UP_KEY_REQUEST, key, 0)
-	#print "send_packet from rpc_lookup_key"
+	#print ("send_packet from rpc_lookup_key")
 	reply = send_packet(requestPacket, remoteNode)
 	if reply is None:
 		print ("[rpc_lookup_key] ******FATAL ******   Something is wrong")
@@ -396,10 +431,10 @@ def rpc_lookup_key(remoteNode, key):
 
 def rpc_update_remote_nodes_finger_table(currentNode, i, remoteNode):
 	requestedPacket = chordMessage(chordMessageType.UPDATE_FINGER_TABLE, currentNode, i)
-	#print "send_packet from rpc_update_remote_nodes_finger_table"
-	#print "[rpc_update_remote_nodes_finger_table] RPC to following node: "
+	#print ("send_packet from rpc_update_remote_nodes_finger_table")
+	#print ("[rpc_update_remote_nodes_finger_table] RPC to following node: ")
 	#print_node_details(remoteNode)
-	#print "[rpc_update_remote_nodes_finger_table] index " + str(i) + " will be updated to following"
+	#print ("[rpc_update_remote_nodes_finger_table] index " + str(i) + " will be updated to following")
 	#print_node_details(currentNode)
 	reply = send_packet(requestedPacket, remoteNode)
 	if reply is None:
@@ -407,16 +442,16 @@ def rpc_update_remote_nodes_finger_table(currentNode, i, remoteNode):
 		pass
 	return	
 def update_others():
-	#print "Do Nothing"
+	#print ("Do Nothing")
 	#return
 	global currentNode
 	for i in range(0, KEY_SIZE):
 		key = generate_bwd_entry_key(currentNode.nodeId, i)
-		#print "[update_others] Finding Predecessor of Key: " + key.id_val
+		#print ("[update_others] Finding Predecessor of Key: " + key.id_val)
 		remoteNode = find_predecessor(key)
-		#print "[update_others] FOUND!!! Following is the node details"
+		#print ("[update_others] FOUND!!! Following is the node details")
 		#print_node_details(remoteNode)
-		#print "Predecessor of Key " + key.id_val + " is following node: "
+		#print ("Predecessor of Key " + key.id_val + " is following node: ")
 		#print_node_details(remoteNode)
 		if remoteNode != currentNode:
 			rpc_update_remote_nodes_finger_table(currentNode, i, remoteNode)
@@ -473,7 +508,7 @@ def join(remoteNode):
 			fingerTableLock.acquire()
 			fingerTable[i] = copy.deepcopy(tmpNode)
 			fingerTableLock.release()
-	#print "####   Before Update Others Printing FInger Table:  ##### "
+	#print ("####   Before Update Others Printing FInger Table:  ##### ")
 	#print_finger_table()
 	#########################################################################
 	update_others()
@@ -500,10 +535,126 @@ def print_finger_table():
 	fingerTableLock.acquire()
 	for i in range(0, KEY_SIZE):
 		print ("Entry Key: " + str(generate_fwd_entry_key(currentNode.nodeId, i).id_val) + " Successor: " + str(fingerTable[i].nodeId.id_val) + " " + str(fingerTable[i].IpAddress) + ":" + str(fingerTable[i].port) )
-		#print "Successor: " + str(fingerTable[i].IpAddress) + ":" + str(fingerTable[i].port) + " " + "Entry Key:" + str(generate_fwd_entry_key(currentNode.nodeId, i).id_val)
+		#print ("Successor: " + str(fingerTable[i].IpAddress) + ":" + str(fingerTable[i].port) + " " + "Entry Key:" + str(generate_fwd_entry_key(currentNode.nodeId, i).id_val)
 	fingerTableLock.release()
 	print_pred_succ_details()
 	return
+
+def fix_fingers():
+	print ("[fix_fingers] Starting fixFingersThread . . .")
+	global fingerTable
+	index = 0
+	
+	while 1:
+		if index == 0:
+			continue
+		time.sleep(2)
+		entryKey = generate_fwd_entry_key(currentNode.nodeId, index)
+		tmpNode = look_up_key(entryKey)
+		
+		fingerTableLock.acquire()
+		existingNode = copy.deepcopy(fingerTable[index])
+		fingerTableLock.release()
+		
+		if not existingNode == tmpNode:
+			print ("[fix_fingers] Entry " + str(index) + " is wrong . . .")
+			print ("[fix_finger] Incorrect Entry: ")
+			print_node_details(existingNode)
+			print ("[fix_finger] Entry Corrected To: ")
+			print_node_details(tmpNode)
+			fingerTableLock.acquire()
+			fingerTable[index] = copy.deepcopy(tmpNode)
+			fingerTableLock.release()
+		index = (index + 1) % (MAX_NUMBER_OF_NODES)
+
+def build_successor_list():
+	global currentNode
+	global successorList
+	global fingerTable
+	Id = currentNode.nodeId
+
+	for i in range(0,10):
+		key = generate_fwd_entry_key(Id, 0)
+		tmpNode = look_up_key(key)
+		successorListLock.acquire()
+		successorList[i] = copy.deepcopy(tmpNode)
+		successorListLock.release()
+		Id = tmpNode.nodeId
+def print_successor_list():
+	print ("[print_successor_list] Printing Successor List")
+	global successorList
+	successorListLock.acquire()
+	for i in range(0, 10):
+		tmpNode = successorList[i]
+		print_node_details(tmpNode)
+	successorListLock.release()
+	print ("[print_successor_list] Successor List Print Ends")
+
+def build_successor_list_thread():
+	print ("[build_successor_list_thread] Updating Successor List in separate Thread . . .")
+	t = Thread(target=build_successor_list)
+	t.daemon = True
+	t.start()
+	
+def get_next_successor():
+	global successorList
+	global correctionAttempts
+	successorListLock.acquire()
+	correctionAttempts = correctionAttempts+1
+	if correctionAttempts > 10:
+		print ("[get_next_successor] Successor Leaving exceeded current capacity")
+		print ("[get_next_successor] Time to refresh successor list")
+		build_successor_list_thread()
+		correctionAttempts = 0
+	tmp = successorList.pop(0)
+	successorList.append(tmp)
+	node = copy.deepcopy(successorList[0])
+	successorListLock.release()
+	return node
+
+def heartbeat_pred():
+	global currentNode
+	while 1:
+		time.sleep(2)
+		#print ("[heartbeat_pred] Trying to ping my predeccessor")
+		pred = get_curr_predecessor()
+		if check_heartbeat(pred) == False:
+			print ("[heartbeat_pred] Heartbeat check failed for following node: ")
+			print_node_details(pred)
+			set_this_nodes_predecessor(currentNode)
+
+def stabilize():
+	print ("[stabilize] Starting Stabilize thread  . . . .")
+	build_successor_list()
+	
+	predCheckerThread = Thread(target=heartbeat_pred)
+	predCheckerThread.daemon = True
+	predCheckerThread.start()
+	
+	while 1:
+		time.sleep(2)
+		successor = get_immediate_successor()
+		#print ("[stabilize] Trying to get predeccessor of following node: ")
+		#print_node_details(successor)
+
+		pred = rpc_get_predecessor(successor)
+		if pred is None: #successor is offline
+			newSuccessor = get_next_successor()
+			set_immediate_successor(newSuccessor)
+			print ("[stabilize] Current Successor if offline. . .")
+			print ("[stabilize] New Successor set to following node: ")
+			print_node_details(newSuccessor)
+			continue
+		if not pred == currentNode:
+			if hash_between(currentNode.nodeId, pred.nodeId, successor.nodeId):
+				print ("[stabilize] Updating this node's successor's predecessor as this node")
+				set_remote_nodes_predecessor(successor)
+			else:
+				#Successor is wrong
+				newSuccessor = get_next_successor()
+				set_immediate_successor(newSuccessor)
+				print ("[stabilize] Immediate Successor set to following node: ")
+				print_node_details(newSuccessor)
 	
 ######################## main function starts ###################################
 def mainChord(config_str):
@@ -545,6 +696,7 @@ def mainChord(config_str):
 		print ("This is the first node joining in the network")
 
 	init_finger_table()
+	init_successor_list()
 	
 	if lookupNode is None:
 		set_this_nodes_predecessor(currentNode)
@@ -554,7 +706,9 @@ def mainChord(config_str):
 	listenThread = Thread(target=chord_rpc_listener, args=(currentNode,rpc_handler))
 	listenThread.daemon = True
 	listenThread.start()
-	time.sleep(1)
+	print ("[main] Sleeping 2 seconds before creating RPC Listener")
+	time.sleep(2)
+	
 
 
 	if lookupNode is not None:
@@ -567,22 +721,38 @@ def mainChord(config_str):
 		print ("Port: " + str(tmpNode.port))
 		print ("############################################################")
 		join(tmpNode)
+	
+	#Start Finger Table Updater Thread. But it os not that much important w.r.t 
+        #our hashKitten implementation. We must maintain proper successor and predecessor list
+        #always
 
 	
+	stabilizeThread = Thread(target=stabilize)
+	stabilizeThread.daemon = True
+	stabilizeThread.start()
+
+	fixFingersThread = Thread(target=fix_fingers)
+	fixFingersThread.daemon = True
+	fixFingersThread.start()
+
+
 	while 1:
 		listenThread.join(1)
-		var = input()
+		#print ("[main] ready to take input")
+		var = int(input())
 		if var == 1:
 			#print_pred_succ_details()
 			print ("Key to search")
 			val = input()
 			tmpNode = look_up_key(identifier(hex(val)))
-			print_node_details(tmpNode)	
-		else:
+			print_node_details(tmpNode)
+		elif var == 2:
 			#print_finger_table()		
 			print_pred_succ_details()
-			#print_finger_table()		
-	
+			#print_finger_table()			
+		elif var == 3:
+			print_successor_list()
+
+
 if __name__ == "__main__":
 	mainChord()
-
