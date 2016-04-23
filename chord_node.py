@@ -76,15 +76,13 @@ predecessor = currentNode
 
 
 def tellSuccessorDone():
-	if currentHash.haltSig is False:
-		tmpNode = get_immediate_successor()	
-		requestPacket = chordMessage(chordMessageType.STOP_WORKING, 0, 0)
-		reply = send_packet(requestPacket, tmpNode)
-		if reply is None:
-			print ("[sending successor stop working failed] ***** FATAL **** Something went wrong")
-			pass
-		return
-
+	tmpNode = get_immediate_successor()	
+	requestPacket = chordMessage(chordMessageType.STOP_WORKING, 0, 0)
+	reply = send_packet(requestPacket, tmpNode)
+	if reply is None:
+		print ("[sending successor stop working failed] ***** FATAL **** Something went wrong")
+		pass
+	return
 
 def submitToNetwork(remoteNode, hashInfo):
 	requestPacket = chordMessage(chordMessageType.SUBMISSION_INFO, hashInfo, 0)
