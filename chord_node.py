@@ -30,7 +30,8 @@ class hashSubmission():
 	hashtext = ""
 	pwdlen = ''
 	charset = ''
-	haltSig = None
+	haltSig = False
+	keyspace = None
 
 	def __init__(self, superNode, origNode, hashtype, hashtext, pwdlen, charset):
 		self.superNode = superNode
@@ -39,6 +40,7 @@ class hashSubmission():
 		self.hashtext = hashtext
 		self.pwdlen = pwdlen
 		self.charset = charset
+		self.keyspace = 26**int(pwdlen)
 
 class chordMessageType():
 		LOOK_UP_KEY_REQUEST = 1
@@ -68,6 +70,7 @@ currentNode.IpAddress = ip
 mac = get_mac()
 currentHash = hashSubmission("", "", "", "", 0, '')
 ksProgress = None
+stale_pred = None
 
 fingerTable = []
 fingerTableLock = Lock()
@@ -115,6 +118,7 @@ def updateProgress(ks_num):
 def rpc_handler(conn, addr):
 	global currentNode
 	global currentHash
+	global stale_pred
 	requestMsg = conn.recv(MAX_RECV_SIZE)
 	conn.settimeout(TIMEOUT)
 	#(host, port) = conn.getsockanme()
@@ -146,7 +150,21 @@ def rpc_handler(conn, addr):
 			node = request.message
 			#print ("[rpc_handler]: My Predecessor will be set to following Node")
 			#print_node_details(node)
+			# stale predecessor = current_predecessor
+			#stale_predecessor = get_curr_predecessor()
+			# Check if (!hash_between(node.nodeId, stale.nodeId, currentNode))
+			# Then run a separate thread to explore keyspace from node.nodeId to stale_pred.nodeId
+			if stale_pred is not None:
+				if not hash_between(node.nodeId, stale_pred.nodeId, currentNode.nodeId) and (currentHash.haltSig is False):
+					stale_pred_rel_id = get_relative_nodeID(stale_pred.nodeId.id_val, currentHash.keyspace)
+					new_pred_rel_id = get_relative_nodeID(node.nodeId.id_val, currentHash.keyspace)
+					print ("**** NODE LEFT ******")
+					print ("Sending to hashcat " + str(new_pred_rel_id+1) + ":" + str(stale_pred_rel_id))				
+					hashcatThread = Thread(target=crack, args=(currentHash, new_pred_rel_id+1, stale_pred_rel_id))
+					hashcatThread.daemon = True
+					hashcatThread.start()
 			set_this_nodes_predecessor(node)
+			stale_pred = None
 			build_successor_list_thread()
 			replyMessage = chordMessage(chordMessageType.ACK, 0, 0)
 			conn.send(serialize_message(replyMessage))
@@ -197,12 +215,12 @@ def rpc_handler(conn, addr):
 				keyspace = 26**int(currentHash.pwdlen)
 				#print (str(keyspace))
 				#print (str(currentHash.pwdlen))
-				relative_id = get_relative_nodeID(currentNode.nodeId.id_val, keyspace)
+				relative_id = get_relative_nodeID(currentNode.nodeId.id_val, currentHash.keyspace)
 				#print ("Relative ID: " + str(relative_id))
 
 				#calculate predecessors keyspace ID
 				predecessor = get_curr_predecessor()
-				pred_rel_id = get_relative_nodeID(predecessor.nodeId.id_val, keyspace)
+				pred_rel_id = get_relative_nodeID(predecessor.nodeId.id_val, currentHash.keyspace)
 				#print ("Pred Relative ID: " + str(pred_rel_id))
 				currentHash.haltSig = False
 				#start hashcat thread
@@ -614,13 +632,15 @@ def get_next_successor():
 
 def heartbeat_pred():
 	global currentNode
+	global stale_pred
 	while 1:
-		time.sleep(2)
+		time.sleep(1)
 		#print ("[heartbeat_pred] Trying to ping my predeccessor")
 		pred = get_curr_predecessor()
 		if check_heartbeat(pred) == False:
 			print ("[heartbeat_pred] Heartbeat check failed for following node: ")
 			print_node_details(pred)
+			stale_pred = pred
 			set_this_nodes_predecessor(currentNode)
 
 def stabilize():
