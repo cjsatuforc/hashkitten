@@ -27,7 +27,7 @@ class SampleApp(tk.Tk):
         self.frames = {}
         # When add new page into application
         # should also add it in this set
-        for F in (MainPage, NewTaskPage, JoinPage, ResultPage):
+        for F in (MainPage, NewTaskPage, ResultPage):
             page_name = F.__name__
             frame = F(container, self)
             self.frames[page_name] = frame
@@ -67,14 +67,57 @@ class MainPage(tk.Frame):
 
         start_button = tk.Button(self, text="START NEW", width=25,
                             command=lambda: controller.show_frame("NewTaskPage"))
-        join_button = tk.Button(self, text="JOIN", width=25,
-                            command=lambda: controller.show_frame("JoinPage"))
+
+        join_button = tk.Button(self, text="Join NOW", width=25,command=lambda: self.joinNetwork())
         result_button = tk.Button(self, text="Result(won't be here)", width=25,
                                   command=lambda: controller.show_frame("ResultPage"))
 
         start_button.pack()
         join_button.pack()
         result_button.pack()
+
+    def joinNetwork(self):
+        #trying to join network; do bootstrapping things
+        peerIP, peerTimes, peerRecordID = getPeerIP()
+
+        #get public IP address
+        ni.ifaddresses('eth0')
+        ip = ni.ifaddresses('eth0')[2][0]['addr']
+                
+        #connect to peer
+
+        params = [""]
+        i = 0
+        while i < len(peerIP):
+                try:
+                        if ip != peerIP[i]:
+                                print("Trying IP Address " + peerIP[i])
+                                s = socket(AF_INET, SOCK_STREAM)
+                                s.connect((peerIP[i], 838))
+                                print("Got a connection!")
+                                params = ["-l " + peerIP[i]]
+                                break
+                        else:
+                                print ("This node was in the list. Removing and trying next.")
+                                removeIPRecord(peerRecordID[i])
+                                i = i+1
+                except Exception as err:
+                        print ("Peer " + str(i) + " unsuccessful. Trying next...")
+                        removeIPRecord(peerRecordID[i])
+                        if i == len(peerIP)-1:
+                                print ("All peers tried. Something is wrong. ")
+                                break                            
+                        else:
+                                i = i+1
+                
+        if len(peerIP) > 5:
+               removeOldestIPEntry()
+        postHostIP(ip)
+        
+
+        connectThread = Thread(target=mainChord, args=(params)) 
+        connectThread.daemon = False
+        connectThread.start()
 
 
 class NewTaskPage(tk.Frame):
@@ -154,33 +197,6 @@ class NewTaskPage(tk.Frame):
                 self.listenThread = Thread(target=client_listener, args=(ip,rpc_handler))
                 self.listenThread.daemon = False
                 self.listenThread.start()
-
-class JoinPage(tk.Frame):
-
-    def __init__(self, parent, controller):
-        tk.Frame.__init__(self, parent)
-        self.controller = controller
-        label = tk.Label(self, text="This is page 2", font=TITLE_FONT)
-        label.pack(side="top", fill="x", pady=10)
-        button = tk.Button(self, text="Go to the start page",
-                           command=lambda: controller.show_frame("MainPage"))
-        button.pack()
-        joinButton = tk.Button(self, text="Join NOW", command=lambda: self.joinNetwork())
-        joinButton.pack(side="top")
-
-    def joinNetwork(self):
-        #trying to join network; do bootstrapping things
-        peerIP, peerTimes, peerRecordID = getPeerIP()
-        #if len(peerIP) > 5:
-        #   removeOldestIPEntry()
-        #postHostIP()
-        
-        #test code ONLY -- hardcoded IP address !! --
-        #assuming call back from DNS gets back 192.168.208.172
-        params = [""]#-l " + peerIP[0]]
-        connectThread = Thread(target=mainChord, args=(params)) 
-        connectThread.daemon = False
-        connectThread.start()
         
 
 class ResultPage(tk.Frame):

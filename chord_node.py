@@ -82,21 +82,29 @@ successorListLock = Lock()
 correctionAttempts = 0
 
 def tellSuccessorDone():
-	tmpNode = get_immediate_successor()	
-	requestPacket = chordMessage(chordMessageType.STOP_WORKING, 0, 0)
-	reply = send_packet(requestPacket, tmpNode)
-	if reply is None:
-		print ("[sending successor stop working failed] ***** FATAL **** Something went wrong")
-		pass
-	return
+	att = 0
+	while att < 3:	
+		tmpNode = get_immediate_successor()	
+		requestPacket = chordMessage(chordMessageType.STOP_WORKING, 0, 0)
+		reply = send_packet(requestPacket, tmpNode)
+		if reply is None:
+			print ("[sending successor stop working failed] ***** FATAL **** Something went wrong")
+			att = att + 1
+			time.sleep(2)
+		else:
+			return
 
 def submitToNetwork(remoteNode, hashInfo):
-	requestPacket = chordMessage(chordMessageType.SUBMISSION_INFO, hashInfo, 0)
-	reply = send_packet(requestPacket, remoteNode)
-	if reply is None:
-		print ("[submit to network] ***** FATAL **** Something went wrong")
-		pass
-	return
+	att = 0
+	while att < 3:		
+		requestPacket = chordMessage(chordMessageType.SUBMISSION_INFO, hashInfo, 0)
+		reply = send_packet(requestPacket, remoteNode)
+		if reply is None:
+			print ("[submit to network] ***** FATAL **** Something went wrong")
+			att = att + 1
+			time.sleep(2)
+		else:
+			return
 
 def submitToSuperNode(password):
 
@@ -106,7 +114,9 @@ def submitToSuperNode(password):
 	requestPacket = chordMessage(chordMessageType.PASSWORD_ANSWER, password, 0)
 	reply = send_packet(requestPacket, supNode)
 	if reply is None:
-		print ("[submit to supernode] ***** FATAL **** Something went wrong")
+		print ("[Attempted to submit to supernode] ***** FATAL **** Something went wrong.")
+		print ("Writing password to DNS TXT record.")
+		postPass2DNS(currentHash.hashtext[:4] + "..." + currentHash.hashtext[-4:] + ":" + password)
 		pass
 	return
 
@@ -240,7 +250,7 @@ def rpc_handler(conn, addr):
 			conn.close()
 			if currentHash.haltSig is False:
 				currentHash.haltSig = True
-				print ("stopping working cause i was told to halt")
+				print ("Stopping work. Another node has solved it!")
 				#tell neighbor
 				tellSuccessorDone()
 		elif request.messageSignature == chordMessageType.HEARTBEAT:
@@ -679,19 +689,6 @@ def stabilize():
 ######################## main function starts ###################################
 def mainChord(config_str):
 	global currentNode
-	#parser = argparse.ArgumentParser(description='Welcome to the tool to build chord Network :-)')
-	#parser.add_argument("-l", "--lookupNode", help="Existing node in IP:Port format")
-	#parser.add_argument("-p", "--port", type=int, help="Port to listen on")
-
-	#args = parser.parse_args()
-
-	#if args.port is None:
-	#	print ("Please specify the port to listen on with the -p option.")
-	#	exit(0)
-		
-	#currentNode.port = args.port
-
-
 
 	currentNode.port=838
 	currentNode.submitterThreadPort=12221
@@ -703,7 +700,6 @@ def mainChord(config_str):
 	print ("[From Main]")
 	print (ip, mac)
 	currentNode.nodeId = generateHash(str(ip) + str(mac) + str(currentNode.port))
-	#currentNode.nodeId = identifier(hex(args.val))
 
 	print ("########### Node Details #######################################")
 	print ("IP: " + currentNode.IpAddress)
@@ -711,7 +707,7 @@ def mainChord(config_str):
 	print ("ID: " + currentNode.nodeId.id_val)
 	print ("################################################################")
 	if lookupNode:
-		print ("Lookup Node: " + lookupNode)
+		print ("Contacting Node: " + lookupNode)
 	else:
 		print ("This is the first node joining in the network")
 

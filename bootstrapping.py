@@ -64,14 +64,8 @@ def getPeerIP():
 
     return [peerIP, peerTimes, peerRecordID]
 
-def postHostIP():
+def postHostIP(ip):
         
-    #get public IP address
-    url = 'http://ip.42.pl/raw'
-    data = ""
-    headers = ""
-    r = requests.get(url, data=data, headers=headers)
-    ip = str(r.text)
         
     #post to DNS record
     url = 'https://api.dnsimple.com/v1/domains/hashkittens.me/records'

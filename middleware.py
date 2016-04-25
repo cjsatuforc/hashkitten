@@ -28,14 +28,13 @@ def crack(currentHash, beginKey, endKey):
     hash1 = currentHash.hashtext.lower()
 
     #create file of hash
-    hfile = open('hash.txt', 'w')
+    hfile = open(str(hash1) + ".txt", 'w')
     hfile.write(hash1)
     hfile.close()
 
     pwd_str = ""
     for x in range(0, chars):
       pwd_str = pwd_str + "?l"  
-
 
     skipnum = beginKey
     limitnum = beginKey + chunk_size
@@ -65,16 +64,10 @@ def crack(currentHash, beginKey, endKey):
             from chord_node import tellSuccessorDone
             tellSuccessorDone() 
         
-        #normal case
-        if endKey > beginKey and limitnum >= endKey:
+        #when keyspace is all searched
+        if endKey > beginKey and limitnum >= endKey or skipnum < endKey and limitnum >= endKey:
            print ("Exhausted assigned keyspace")
            ksExhausted = True
-        #overflowed the circle case    n|0
-        if skipnum < endKey and limitnum >= endKey:
-           print ("Exhausted assigned keyspace")
-           ksExhausted = True
-
-        #updateProgress(limitnum)
 
         if limitnum == maxKS:
            skipnum = 0
