@@ -81,9 +81,12 @@ class MainPage(tk.Frame):
         peerIP, peerTimes, peerRecordID = getPeerIP()
 
         #get public IP address
-        ni.ifaddresses('eth0')
-        ip = ni.ifaddresses('eth0')[2][0]['addr']
-                
+        url = 'http://ip.42.pl/raw'
+        data = ""
+        headers = ""
+        r = requests.get(url, data=data, headers=headers)
+        ip = str(r.text)    
+                    
         #connect to peer
 
         params = [""]
