@@ -13,7 +13,9 @@ def chord_rpc_listener(currentNode, rpc_handler):
 	global serverSocket
 	try:
 			serverSocket = socket(AF_INET, SOCK_STREAM)
-			addr = (currentNode.IpAddress, currentNode.port)
+			ni.ifaddresses('eth0')
+			ip = ni.ifaddresses('eth0')[2][0]['addr']
+			addr = (ip, currentNode.port)
 			serverSocket.bind((addr))
 			serverSocket.listen(MAX_CONNECTIONS)
 	except Exception as e:
@@ -32,7 +34,9 @@ def client_listener(ipaddr, rpc_handler):
 	try:
 		global serverSocket
 		serverSocket = socket(AF_INET, SOCK_STREAM)
-		addr = (ipaddr, 838)
+		ni.ifaddresses('eth0')
+		ip = ni.ifaddresses('eth0')[2][0]['addr']
+		addr = (ip, 838)
 		serverSocket.bind((addr))
 		serverSocket.listen(MAX_CONNECTIONS)
 		print ("Waiting for the password...")
