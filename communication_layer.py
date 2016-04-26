@@ -13,6 +13,7 @@ def chord_rpc_listener(currentNode, rpc_handler):
 	global serverSocket
 	try:
 			serverSocket = socket(AF_INET, SOCK_STREAM)
+			#use private IP here
 			ni.ifaddresses('eth0')
 			ip = ni.ifaddresses('eth0')[2][0]['addr']
 			addr = (ip, currentNode.port)
@@ -34,6 +35,7 @@ def client_listener(ipaddr, rpc_handler):
 	try:
 		global serverSocket
 		serverSocket = socket(AF_INET, SOCK_STREAM)
+		#use private IP here
 		ni.ifaddresses('eth0')
 		ip = ni.ifaddresses('eth0')[2][0]['addr']
 		addr = (ip, 838)
