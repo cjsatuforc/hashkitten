@@ -28,7 +28,7 @@ def crack(currentHash, beginKey, endKey):
     hash1 = currentHash.hashtext.lower()
 
     #create file of hash
-    hfile = open(str(hash1) + ".txt", 'w')
+    hfile = open(str(hash1[:4] + "..." + hash1[-4:]) + ".txt", 'w')
     hfile.write(hash1)
     hfile.close()
 
@@ -47,7 +47,7 @@ def crack(currentHash, beginKey, endKey):
     while solved is False and ksExhausted is False and halt is False:
         #call hashcat (blocking)
         print ("Running hashcat process from " + str(skipnum) + " to " + str(limitnum) + " for len " + str(diff)) 
-        sp = subprocess.Popen(['./hashcat-cli64.bin', '-m', str(hashtype), '-a 3', '-s', str(skipnum), '-l', str(diff), 'hash.txt', pwd_str], stdout=subprocess.PIPE)
+        sp = subprocess.Popen(['./hashcat-cli64.bin', '-m', str(hashtype), '-a 3', '-s', str(skipnum), '-l', str(diff), str(hash1) + ".txt", pwd_str], stdout=subprocess.PIPE)
         data, errdata = sp.communicate()
         data = str(data)
         halt = getStatus()
