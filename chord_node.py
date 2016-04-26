@@ -3,6 +3,7 @@ import signal
 import sys
 import copy
 import random
+import requests
 from uuid import getnode as get_mac
 import netifaces as ni
 from hash_helper import *
