@@ -599,7 +599,7 @@ def update_entire_table():
 			fingerTable[i] = copy.deepcopy(fingerTable[i-1])
 			fingerTableLock.release()
 		else:
-			tmpNode = rpc_lookup_key(remoteNode, entryKey)
+			tmpNode = rpc_lookup_key(get_immediate_successor(), entryKey)
 			fingerTableLock.acquire()
 			fingerTable[i] = copy.deepcopy(tmpNode)
 			fingerTableLock.release()
