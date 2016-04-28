@@ -172,7 +172,7 @@ def rpc_handler(conn, addr):
 			# Check if (!hash_between(node.nodeId, stale.nodeId, currentNode))
 			# Then run a separate thread to explore keyspace from node.nodeId to stale_pred.nodeId
 			if stale_pred is not None:
-				if not hash_between(node.nodeId, stale_pred.nodeId, currentNode.nodeId) and not (currentHash.haltSig is True):
+				if not hash_between(node.nodeId, stale_pred.nodeId, currentNode.nodeId) and (currentHash.haltSig is False):
 					stale_pred_rel_id = get_relative_nodeID(stale_pred.nodeId.id_val, currentHash.keyspace)
 					new_pred_rel_id = get_relative_nodeID(node.nodeId.id_val, currentHash.keyspace)
 					print ("[rpc_handler] **** NODE LEFT ******")
