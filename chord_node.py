@@ -586,21 +586,20 @@ def print_finger_table():
 	print_pred_succ_details()
 	return
 
-def update_index_range(startIndex, endIndex):
-	for i in range(startIndex, endIndex):
+def update_entire_table():
+	for i in range(1, KEY_SIZE):
 		entryKey = generate_fwd_entry_key(currentNode.nodeId, i)
-		tmpNode = look_up_key(entryKey)
-		
+
 		fingerTableLock.acquire()
-		existingNode = copy.deepcopy(fingerTable[i])
+		prevNode = copy.deepcopy(fingerTable[i-1])	
 		fingerTableLock.release()
-		
-		if not existingNode == tmpNode:
-			#print ("[fix_fingers] Entry " + str(index) + " is wrong . . .")
-			#print ("[fix_finger] Incorrect Entry: ")
-			#print_node_details(existingNode)
-			#print ("[fix_finger] Entry Corrected To: ")
-			#print_node_details(tmpNode)
+
+		if hash_between_first_equal(entryKey, currentNode.nodeId, prevNode.nodeId):
+			fingerTableLock.acquire()
+			fingerTable[i] = copy.deepcopy(fingerTable[i-1])
+			fingerTableLock.release()
+		else:
+			tmpNode = rpc_lookup_key(remoteNode, entryKey)
 			fingerTableLock.acquire()
 			fingerTable[i] = copy.deepcopy(tmpNode)
 			fingerTableLock.release()
@@ -610,13 +609,8 @@ def fix_fingers():
 	turn = 1
 	
 	while 1:
-		time.sleep(2)
-		if turn == 1:
-			update_index_range(0, 80)
-			turn = 2
-		else:
-			update_index_range(80, 160)
-			turn = 1
+		time.sleep(5)
+		update_entire_table()
 
 def build_successor_list():
 	global currentNode
