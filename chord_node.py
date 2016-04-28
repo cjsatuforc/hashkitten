@@ -595,7 +595,7 @@ def update_entire_table():
 		prevNode = copy.deepcopy(fingerTable[i-1])	
 		fingerTableLock.release()
 
-		if hash_between_first_equal(entryKey, currentNode.nodeId, prevNode.nodeId):
+		if prevNode is not None and hash_between_first_equal(entryKey, currentNode.nodeId, prevNode.nodeId):
 			fingerTableLock.acquire()
 			fingerTable[i] = copy.deepcopy(fingerTable[i-1])
 			fingerTableLock.release()
