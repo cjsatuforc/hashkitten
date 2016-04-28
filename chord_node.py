@@ -347,7 +347,7 @@ def get_nearest_finger(key):
 	global currentNode
 	fingerTableLock.acquire()
 	for i in range((KEY_SIZE - 1), -1, -1):
-		if fingerTable[i].nodeId is not None and hash_between(fingerTable[i].nodeId, currentNode.nodeId, key):
+		if fingerTable[i] is not None and hash_between(fingerTable[i].nodeId, currentNode.nodeId, key):
 			tmpNode = copy.deepcopy(fingerTable[i])
 			fingerTableLock.release()
 			if check_heartbeat(tmpNode) == False:
