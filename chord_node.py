@@ -11,6 +11,7 @@ import argparse
 from threading import *
 from communication_layer import *
 from middleware import *
+from bootstrapping import *
 
 ####################### chord node definition #####################################
 class chordNode():
@@ -31,7 +32,7 @@ class hashSubmission():
 	hashtext = ""
 	pwdlen = ''
 	charset = ''
-	haltSig = False
+	haltSig = True
 	keyspace = None
 
 	def __init__(self, superNode, origNode, hashtype, hashtext, pwdlen, charset):
@@ -120,8 +121,8 @@ def submitToSuperNode(password):
 	requestPacket = chordMessage(chordMessageType.PASSWORD_ANSWER, password, 0)
 	reply = send_packet(requestPacket, supNode)
 	if reply is None:
-		print ("[Attempted to submit to supernode] ***** FATAL **** Something went wrong.")
-		print ("Writing password to DNS TXT record.")
+		print ("[submitToSuperNode] ***** FATAL **** Something went wrong.")
+		print ("[submitTosuperNode] Writing password to DNS TXT record.")
 		postPass2DNS(currentHash.hashtext[:4] + "..." + currentHash.hashtext[-4:] + ":" + password)
 		pass
 	return
@@ -171,11 +172,11 @@ def rpc_handler(conn, addr):
 			# Check if (!hash_between(node.nodeId, stale.nodeId, currentNode))
 			# Then run a separate thread to explore keyspace from node.nodeId to stale_pred.nodeId
 			if stale_pred is not None:
-				if not hash_between(node.nodeId, stale_pred.nodeId, currentNode.nodeId) and (currentHash.haltSig is False):
+				if not hash_between(node.nodeId, stale_pred.nodeId, currentNode.nodeId) and not (currentHash.haltSig is True):
 					stale_pred_rel_id = get_relative_nodeID(stale_pred.nodeId.id_val, currentHash.keyspace)
 					new_pred_rel_id = get_relative_nodeID(node.nodeId.id_val, currentHash.keyspace)
-					print ("**** NODE LEFT ******")
-					print ("Sending to hashcat " + str(new_pred_rel_id+1) + ":" + str(stale_pred_rel_id))				
+					print ("[rpc_handler] **** NODE LEFT ******")
+					print ("[rpc_handler] Taking over its predecessor keyspace: " + str(new_pred_rel_id+1) + ":" + str(stale_pred_rel_id))				
 					hashcatThread = Thread(target=crack, args=(currentHash, new_pred_rel_id+1, stale_pred_rel_id))
 					hashcatThread.daemon = True
 					hashcatThread.start()
@@ -212,7 +213,7 @@ def rpc_handler(conn, addr):
 			conn.close()
 		elif request.messageSignature == chordMessageType.SUBMISSION_INFO:			
 			hashItem = request.message
-			print ("recvd a request..." + str(hashItem.hashtext))
+			print ("[rpc_handler] [SUBMISSION_INFO] recvd a request..." + str(hashItem.hashtext))
 			replyMessage = chordMessage(chordMessageType.ACK, 0, 0)
 			conn.send(serialize_message(replyMessage))
 			conn.close()
@@ -220,6 +221,7 @@ def rpc_handler(conn, addr):
 			if currentHash.hashtext != hashItem.hashtext:
 				#set hash, then pass hash around
 				currentHash = hashItem
+				currentHash.haltSig = False
 				print (hashItem.pwdlen)
 				tmpNode = get_immediate_successor()
 				submitToNetwork(tmpNode, hashItem)
@@ -240,13 +242,15 @@ def rpc_handler(conn, addr):
 				#print ("Pred Relative ID: " + str(pred_rel_id))
 				currentHash.haltSig = False
 				#start hashcat thread
-				print ("Sending to hashcat " + str(pred_rel_id+1) + ":" + str(relative_id))				
+				print ("[rpc_handler] [SUBMISSION_INFO] Sending to hashcat " + str(pred_rel_id+1) + ":" + str(relative_id))				
 				hashcatThread = Thread(target=crack, args=(currentHash, pred_rel_id+1, relative_id))
 				hashcatThread.daemon = True
 				hashcatThread.start()
+			else:
+				pritn("[rpc_handler] [SUBMISSION_INFO] Ignoring it as I am already doing it!!")
 		elif request.messageSignature == chordMessageType.PASSWORD_ANSWER:			
 			password = request.message
-			print ("Password is: " + str(password))
+			print ("[rpc_handler] [PASSWORD_ANSWER] Password is: " + str(password))
 			replyMessage = chordMessage(chordMessageType.ACK, 0, 0)
 			conn.send(serialize_message(replyMessage))
 			conn.close()
@@ -256,7 +260,8 @@ def rpc_handler(conn, addr):
 			conn.close()
 			if currentHash.haltSig is False:
 				currentHash.haltSig = True
-				print ("Stopping work. Another node has solved it!")
+				currentHash.hashtext = ""
+				print ("[rpc_handler] [STOP_WORKING] Stopping work. hashText is set to None & haltSig set to True!")
 				#tell neighbor
 				tellSuccessorDone()
 		elif request.messageSignature == chordMessageType.HEARTBEAT:
