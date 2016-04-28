@@ -88,11 +88,11 @@ successorList = []
 successorListLock = Lock()
 correctionAttempts = 0
 
-def tellSuccessorDone():
+def tellSuccessorDone(originatorIp):
 	att = 0
 	while att < 3:	
 		tmpNode = get_immediate_successor()	
-		requestPacket = chordMessage(chordMessageType.STOP_WORKING, 0, 0)
+		requestPacket = chordMessage(chordMessageType.STOP_WORKING, originatorIp, 0)
 		reply = send_packet(requestPacket, tmpNode)
 		if reply is None:
 			print ("[sending successor stop working failed] ***** FATAL **** Something went wrong")
@@ -222,7 +222,7 @@ def rpc_handler(conn, addr):
 				#set hash, then pass hash around
 				currentHash = hashItem
 				currentHash.haltSig = False
-				print (hashItem.pwdlen)
+				print ("[rpc_handler][SUBMISSION_INFO] Password Length: " + str(hashItem.pwdlen))
 				tmpNode = get_immediate_successor()
 				submitToNetwork(tmpNode, hashItem)
 				#print (currentHash.hashtype)
@@ -247,7 +247,7 @@ def rpc_handler(conn, addr):
 				hashcatThread.daemon = True
 				hashcatThread.start()
 			else:
-				pritn("[rpc_handler] [SUBMISSION_INFO] Ignoring it as I am already doing it!!")
+				print("[rpc_handler] [SUBMISSION_INFO] Ignoring it as I am already doing it!!")
 		elif request.messageSignature == chordMessageType.PASSWORD_ANSWER:			
 			password = request.message
 			print ("[rpc_handler] [PASSWORD_ANSWER] Password is: " + str(password))
@@ -255,15 +255,22 @@ def rpc_handler(conn, addr):
 			conn.send(serialize_message(replyMessage))
 			conn.close()
 		elif request.messageSignature == chordMessageType.STOP_WORKING:
-			replyMessage = chordMessage(chordMessageType.ACK, 0, 0)
-			conn.send(serialize_message(replyMessage))
-			conn.close()
-			if currentHash.haltSig is False:
-				currentHash.haltSig = True
-				currentHash.hashtext = ""
-				print ("[rpc_handler] [STOP_WORKING] Stopping work. hashText is set to None & haltSig set to True!")
+			originatorIp = request.message
+			if(originatorIp == currentNode.IpAddress):
+				print ("[rpc_handler] [STOP_WORKING] I am the Originator. Will forward this no more")
+				replyMessage = chordMessage(chordMessageType.ACK, 0, 0)
+				conn.send(serialize_message(replyMessage))
+				conn.close()
+			else:
+				if currentHash.haltSig is False:
+					currentHash.haltSig = True
+					currentHash.hashtext = ""
+					print ("[rpc_handler] [STOP_WORKING] Stopping work. hashText is set to None & haltSig set to True!")
+				replyMessage = chordMessage(chordMessageType.ACK, 0, 0)
+				conn.send(serialize_message(replyMessage))
+				conn.close()
 				#tell neighbor
-				tellSuccessorDone()
+				tellSuccessorDone(originatorIp)
 		elif request.messageSignature == chordMessageType.HEARTBEAT:
 			replyMessage = chordMessage(chordMessageType.HEARTBEAT_REPLY, 0, 0)
 			conn.send(serialize_message(replyMessage))

@@ -47,7 +47,7 @@ def crack(currentHash, beginKey, endKey):
     print (str(halt))
     while solved is False and ksExhausted is False and halt is False:
         #call hashcat (blocking)
-        print ("Running hashcat process from " + str(skipnum) + " to " + str(limitnum) + " for len " + str(diff)) 
+        print ("[crack] Running hashcat process from " + str(skipnum) + " to " + str(limitnum) + " for len " + str(diff)) 
         sp = subprocess.Popen(['./hashcat-cli64.bin', '-m', str(hashtype), '-a 3', '-s', str(skipnum), '-l', str(diff), str(hashstr) + ".txt", pwd_str], stdout=subprocess.PIPE)
         data, errdata = sp.communicate()
         data = str(data)
@@ -57,17 +57,18 @@ def crack(currentHash, beginKey, endKey):
         if "All hashes have been recovered" in data:
             data = data[data.find(hash1):]
             password = data[len(hash1)+1:data.find("\\n")]
-            print ("We did it! Password is: " + password)
+            print ("[crack] We did it! Password is: " + password)
             solved = True
             #send message to superNode
             from chord_node import submitToSuperNode
             submitToSuperNode(password)
             from chord_node import tellSuccessorDone
-            tellSuccessorDone() 
+            from chord_node import currentNode
+            tellSuccessorDone(currentNode.IpAddress) 
         
         #when keyspace is all searched
         if endKey > beginKey and limitnum >= endKey or skipnum < endKey and limitnum >= endKey:
-           print ("Exhausted assigned keyspace")
+           print ("[crack] Exhausted assigned keyspace")
            ksExhausted = True
 
         if limitnum == maxKS:
@@ -80,4 +81,4 @@ def crack(currentHash, beginKey, endKey):
         
         if limitnum > maxKS:
            limitnum = maxKS 
-    print ("Completed task")
+    print ("[crack] Completed task")
