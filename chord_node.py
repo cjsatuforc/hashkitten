@@ -579,15 +579,8 @@ def print_finger_table():
 	print_pred_succ_details()
 	return
 
-def fix_fingers():
-	print ("[fix_fingers] Starting fixFingersThread . . .")
-	global fingerTable
-	index = 0
-	
-	while 1:
-		if index == 0:
-			continue
-		time.sleep(2)
+def update_index_range(startIndex, endIndex):
+	for i in range(startIndex, endIndex):
 		entryKey = generate_fwd_entry_key(currentNode.nodeId, index)
 		tmpNode = look_up_key(entryKey)
 		
@@ -596,15 +589,29 @@ def fix_fingers():
 		fingerTableLock.release()
 		
 		if not existingNode == tmpNode:
-			print ("[fix_fingers] Entry " + str(index) + " is wrong . . .")
-			print ("[fix_finger] Incorrect Entry: ")
-			print_node_details(existingNode)
-			print ("[fix_finger] Entry Corrected To: ")
-			print_node_details(tmpNode)
+			#print ("[fix_fingers] Entry " + str(index) + " is wrong . . .")
+			#print ("[fix_finger] Incorrect Entry: ")
+			#print_node_details(existingNode)
+			#print ("[fix_finger] Entry Corrected To: ")
+			#print_node_details(tmpNode)
 			fingerTableLock.acquire()
 			fingerTable[index] = copy.deepcopy(tmpNode)
 			fingerTableLock.release()
-		index = (index + 1) % (MAX_NUMBER_OF_NODES)
+		
+	
+def fix_fingers():
+	print ("[fix_fingers] Starting fixFingersThread . . .")
+	global fingerTable
+	turn = 1
+	
+	while 1:
+		time.sleep(2)
+		if turn == 1:
+			update_index_range(0, 80)
+			turn = 2
+		else:
+			update_index_range(80, 160)
+			turn = 1
 
 def build_successor_list():
 	global currentNode
