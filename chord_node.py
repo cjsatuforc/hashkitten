@@ -371,7 +371,7 @@ def init_successor_list():
 	global successorList
 	global currentNode
 	successorListLock.acquire()
-	for i in range(0, 10):
+	for i in range(0, 20):
 		tmpNode = copy.deepcopy(currentNode)
 		successorList.append(tmpNode)
 	successorListLock.release()
@@ -619,7 +619,7 @@ def build_successor_list():
 	global fingerTable
 	Id = currentNode.nodeId
 
-	for i in range(0,10):
+	for i in range(0,20):
 		key = generate_fwd_entry_key(Id, 0)
 		tmpNode = look_up_key(key)
 		successorListLock.acquire()
@@ -630,7 +630,7 @@ def print_successor_list():
 	print ("[print_successor_list] Printing Successor List")
 	global successorList
 	successorListLock.acquire()
-	for i in range(0, 10):
+	for i in range(0, 20):
 		tmpNode = successorList[i]
 		print_node_details(tmpNode)
 	successorListLock.release()
@@ -647,7 +647,7 @@ def get_next_successor():
 	global correctionAttempts
 	successorListLock.acquire()
 	correctionAttempts = correctionAttempts+1
-	if correctionAttempts > 10:
+	if correctionAttempts > 20:
 		print ("[get_next_successor] Successor Leaving exceeded current capacity")
 		print ("[get_next_successor] Time to refresh successor list")
 		build_successor_list_thread()
