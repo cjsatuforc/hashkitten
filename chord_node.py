@@ -581,11 +581,11 @@ def print_finger_table():
 
 def update_index_range(startIndex, endIndex):
 	for i in range(startIndex, endIndex):
-		entryKey = generate_fwd_entry_key(currentNode.nodeId, index)
+		entryKey = generate_fwd_entry_key(currentNode.nodeId, i)
 		tmpNode = look_up_key(entryKey)
 		
 		fingerTableLock.acquire()
-		existingNode = copy.deepcopy(fingerTable[index])
+		existingNode = copy.deepcopy(fingerTable[i])
 		fingerTableLock.release()
 		
 		if not existingNode == tmpNode:
@@ -595,10 +595,8 @@ def update_index_range(startIndex, endIndex):
 			#print ("[fix_finger] Entry Corrected To: ")
 			#print_node_details(tmpNode)
 			fingerTableLock.acquire()
-			fingerTable[index] = copy.deepcopy(tmpNode)
+			fingerTable[i] = copy.deepcopy(tmpNode)
 			fingerTableLock.release()
-		
-	
 def fix_fingers():
 	print ("[fix_fingers] Starting fixFingersThread . . .")
 	global fingerTable
