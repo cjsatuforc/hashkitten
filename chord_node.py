@@ -620,19 +620,13 @@ def build_successor_list():
 	global fingerTable
 	Id = currentNode.nodeId
 
-	for i in range(0,15):
+	for i in range(0,SUCCESSOR_LIST_LEN):
 		key = generate_fwd_entry_key(Id, 0)
 		tmpNode = look_up_key(key)
 		successorListLock.acquire()
 		successorList[i] = copy.deepcopy(tmpNode)
 		successorListLock.release()
 		Id = tmpNode.nodeId
-	for i in range(15,30):
-		successorListLock.acquire()
-		fingerTableLock.acquire()
-		successorList[i] = copy.deepcopy(fingerTable[130+i])
-		fingerTableLock.release()
-		successorListLock.release()
 		
 def print_successor_list():
 	print ("[print_successor_list] Printing Successor List")
