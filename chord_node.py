@@ -13,7 +13,7 @@ from communication_layer import *
 from middleware import *
 from bootstrapping import *
 
-SUCCESSOR_LIST_LEN = 30
+SUCCESSOR_LIST_LEN = 20
 ####################### chord node definition #####################################
 class chordNode():
 	IpAddress = "localhost"
